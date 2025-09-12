@@ -1,0 +1,194 @@
+{% assign goal_discounts = shop.metafields.spending_goal.goal_discounts.value %}
+{% comment %} {% assign cart_total = cart.total_price | default: 0 %} {% endcomment %}
+{%- comment -%}
+  The goal_discounts metafield is expected to be a JSON array of objects like:
+  [
+    { "amount": 5000, "discount": 5 },
+    { "amount": 10000, "discount": 10 },
+    { "amount": 20000, "discount": 15 }
+  ]
+  where "amount" is in cents and "discount" is a percentage.
+{%- endcomment -%}
+
+<style>
+  .spending-goal-bar {
+    {% comment %} position: fixed;
+    bottom: 20%;
+    left: 32px; {% endcomment %}
+    background: #fff;
+    color: #222;
+    border-radius: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    padding: 16px 28px;
+    {% comment %} z-index: 9999; {% endcomment %}
+    font-size: 1rem;
+    min-width: 260px;
+    text-align: center;
+    border: 1px solid #eee;
+    transition: opacity 0.3s;
+  }
+  .spending-goal-bar[hidden] {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .spending-goal-bar p {
+    margin: 0;
+  }
+  .spending-goal-bar .progress {
+    margin-top: 8px;
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .spending-goal-bar .progress-fill {
+    display: block;
+    height: 100%;
+    background: #10b981;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+</style>
+
+<div class="spending-goal-bar" id="spending-goal-bar">
+  <p id="spending-goal-text" aria-live="polite">Loading...</p>
+  <div class="progress"><div class="progress-fill"></div></div>
+</div>
+
+<script>
+(function() {
+  // Parse the JSON array from Liquid
+  let goalDiscounts = [];
+  try {
+    goalDiscounts = {{ goal_discounts | default: '[]' | json }};
+    console.log("Raw goalDiscounts from metafield:", goalDiscounts);
+    if (!Array.isArray(goalDiscounts)) goalDiscounts = [];
+  } catch(e) {
+    console.error("Error parsing goalDiscounts:", e);
+    goalDiscounts = [];
+  }
+
+  // Filter and sort valid goals
+  goalDiscounts = goalDiscounts
+    .filter(g => typeof g.amount === "number" && g.amount > 0 && typeof g.discount === "number" && g.discount > 0)
+    .sort((a, b) => a.amount - b.amount);
+
+  console.log("Filtered & sorted goalDiscounts:", goalDiscounts);
+
+  const SHOP_CURRENCY = "{{ shop.currency }}";
+  const bar = document.getElementById('spending-goal-bar');
+  const textEl = document.getElementById('spending-goal-text');
+  const progressFill = bar.querySelector('.progress-fill');
+
+  function formatMoney(cents) {
+    return (cents / 100).toLocaleString(undefined, {
+      style: 'currency',
+      currency: SHOP_CURRENCY
+    });
+  }
+
+  function getCurrentGoal(cartTotal) {
+    let nextGoal = null;
+    let unlockedDiscount = null;
+    for (let i = 0; i < goalDiscounts.length; i++) {
+      if (cartTotal < goalDiscounts[i].amount) {
+        nextGoal = goalDiscounts[i];
+        break;
+      }
+      unlockedDiscount = goalDiscounts[i];
+    }
+    console.log("getCurrentGoal:", { cartTotal, nextGoal, unlockedDiscount });
+    return { nextGoal, unlockedDiscount };
+  }
+
+  function updateSpendingGoal(cart) {
+    console.log("Cart object:", cart);
+
+    if (!bar || !textEl || !progressFill) {
+      console.warn("Bar or elements missing");
+      return;
+    }
+
+    if (!goalDiscounts.length || cart.item_count === 0) {
+      bar.setAttribute('hidden', 'hidden');
+      textEl.textContent = 'No goals set yet.';
+      console.log("Bar hidden: No goals or cart empty");
+      return;
+    } else {
+      bar.removeAttribute('hidden');
+    }
+
+    const cartTotal = cart.total_price;
+    const { nextGoal, unlockedDiscount } = getCurrentGoal(cartTotal);
+
+    if (nextGoal) {
+      const percent = Math.min(Math.max((cartTotal / nextGoal.amount) * 100, 0), 100);
+      progressFill.style.width = percent + '%';
+      const amountLeft = Math.max(nextGoal.amount - cartTotal, 0);
+      textEl.textContent = `Spend ${formatMoney(amountLeft)} more to unlock ${nextGoal.discount}% discount on Shipping (${percent.toFixed(0)}% progress)`;
+      console.log("Progress towards next goal:", { nextGoal, percent, amountLeft });
+    } else if (unlockedDiscount) {
+      progressFill.style.width = '100%';
+      textEl.textContent = `🎉 Congratulations! You unlocked ${unlockedDiscount.discount}% discount on Shipping!`;
+      console.log("All goals reached. Highest unlocked discount:", unlockedDiscount);
+    } else {
+      progressFill.style.width = '0%';
+      textEl.textContent = 'No goals set yet.';
+      console.log("No valid goals after filtering.");
+    }
+  }
+
+  function fetchAndUpdateGoal() {
+    fetch('/cart.js')
+      .then(response => response.json())
+      .then(cart => updateSpendingGoal(cart))
+      .catch((err) => {
+        bar.setAttribute('hidden', 'hidden');
+        console.error("Error fetching cart.js:", err);
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', fetchAndUpdateGoal);
+
+  document.addEventListener('submit', function(event) {
+    if (
+      event.target.matches('form[action^="/cart/add"]') ||
+      event.target.matches('form[action^="/cart/change"]') ||
+      event.target.matches('form[action^="/cart/update"]') ||
+      event.target.matches('form[action^="/cart/clear"]')
+    ) {
+      setTimeout(fetchAndUpdateGoal, 1500);
+      console.log("Cart form submitted, will update bar after delay.");
+    }
+  });
+
+  document.addEventListener('click', function(event) {
+    if (
+      event.target.matches('button[name="update"]') ||
+      event.target.matches('input[name="update"]') ||
+      event.target.closest('form[action="/cart"]') ||
+      event.target.matches('button[name="checkout"]') ||
+      event.target.matches('a[href="/checkout"]')
+    ) {
+      setTimeout(fetchAndUpdateGoal, 1500);
+      console.log("Cart-related button clicked, will update bar after delay.");
+    }
+  });
+})();
+
+{% comment %} const events = ['click', 'keydown'];
+
+events.forEach(eventType => {
+  document.body.addEventListener(eventType, function(event) {
+    console.log(`${eventType} event fired`, event);
+  });
+}); {% endcomment %}
+
+{% comment %} 
+document.body.addEventListener('click',(event) => {
+  if(event.target.matches('button[name="cart"]') || event.target.matches('a[href="/cart"]')) {
+    console.log("Click event target:", event.target);
+  }
+  console.log("Click event detected:", event);
+}); {% endcomment %}
+</script>

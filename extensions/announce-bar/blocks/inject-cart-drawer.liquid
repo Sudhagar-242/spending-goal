@@ -1,0 +1,34 @@
+<style>
+  .skeleton-loader {
+    display: inline-block;
+    width: max-content;
+    margin: auto 0;
+    height: max-content;
+    color: transparent;
+    margin-bottom: 6px;
+    border-radius: 2px;
+    background: red;
+    background: linear-gradient(to right, #f4f4f4, white, #f4f4f4, white);
+    background-size: 800px 100px;
+    animation: wave-lines 2s infinite ease-out;
+  }
+  @keyframes wave-lines {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
+
+{% schema %}
+{
+  "name": "Inject cart drawer",
+  "target": "body",
+  "javascript": "inject-progress.js",
+  "settings": []
+}
+{% endschema %}
