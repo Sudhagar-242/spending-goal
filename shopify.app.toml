@@ -2,7 +2,7 @@
 
 client_id = "4f643e6d6f502106eb41e5ca7f377516"
 name = "create-goal"
-application_url = "https://hungry-mil-repair-tony.trycloudflare.com"
+application_url = "https://pressure-founder-project-washing.trycloudflare.com"
 embedded = true
 handle = "create-goal"
 
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products,read_products,write_discounts"
 
 [auth]
-redirect_urls = ["https://hungry-mil-repair-tony.trycloudflare.com/auth/callback", "https://hungry-mil-repair-tony.trycloudflare.com/auth/shopify/callback", "https://hungry-mil-repair-tony.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://pressure-founder-project-washing.trycloudflare.com/auth/callback", "https://pressure-founder-project-washing.trycloudflare.com/auth/shopify/callback", "https://pressure-founder-project-washing.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

@@ -20,9 +20,89 @@
       background-position: -100% 0;
     }
   }
+  
+/* Container default */
+.p-container {
+  padding: 10px;
+  background: white;
+}
+
+/* Progress bar track */
+.progress-bar {
+  height: 10px;
+  width: 100%;
+  position: relative;
+  z-index: 10;
+  background-color: #494949;
+  border-radius: 10px;
+}
+
+/* Progress fill */
+.progress-bar .progress {
+  position: relative;
+  height: 100%;
+  transition: width 0.5s ease-out;
+  border-radius: 0px 2px 2px 0px;
+  background-color: #bfbfbf;
+  color: #bfbfbf; /* for glow */
+  border-radius: 10px;
+}
+
+/* Glow effect */
+.progress-bar .glow {
+  width: 60px;
+  max-width: 100%;
+  height: 100%;
+  float: right;
+}
+
+.progress-bar .glow::before,
+.progress-bar .glow::after {
+  content: "";
+  display: block;
+  position: relative;
+  border-radius: 10px;
+}
+
+.progress-bar .glow::before {
+  background: transparent;
+  height: 100%;
+  box-shadow: 0px 0px 10px #666666, 0px 0px 10px #666666;
+  z-index: -5;
+}
+
+.progress-bar .glow::after {
+  background: linear-gradient(to right, white 0%, transparent 100%);
+  height: calc(100% + 20px);
+  width: calc(100% + 20px);
+  top: -20px;
+  left: -10px;
+  z-index: -3;
+}
+
+/* Animation */
+.progress {
+  animation: fill-1 0.5s ease-out 0s;
+  animation-fill-mode: forwards;
+  width: 0%;
+  transition: all .2s linear forwards;
+}
 </style>
 
+<div
+  id='threshold-data'
+  data-threshold='{{ shop.metafields.spending_goal.goal_discounts.value | json }}'
+  data-currency='{{ shop.currency  }}'
+  style="display: none;"
+  hidden
+></div>
+
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
+
+<script async>
+  window.goal_discounts = {goals: {{ shop.metafields.spending_goal.goal_discounts.value | json }}};
+  console.log('Goal Discounts:', window.goal_discounts);
+</script>
 
 {% schema %}
 {
