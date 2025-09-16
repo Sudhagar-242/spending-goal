@@ -1,5 +1,18 @@
 query CartInput {
+  shop {
+    metafield(key: "goal_discounts", namespace: "spending_goal") {
+      jsonValue
+    }
+  }
   cart {
+    cost {
+      subtotalAmount {
+        amount
+      }
+      totalAmount {
+        amount
+      }
+    }
     lines {
       id
       cost {

@@ -18,7 +18,7 @@ export function cartDeliveryOptionsDiscountsGenerateRun(
   );
 
   if (!hasShippingDiscountClass) {
-    return {operations: []};
+    return { operations: [] };
   }
 
   return {

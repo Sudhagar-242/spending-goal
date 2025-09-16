@@ -3,7 +3,8 @@
     display: inline-block;
     width: max-content;
     margin: auto 0;
-    height: max-content;
+    height: 14px;
+    line-height: 14px;
     color: transparent;
     margin-bottom: 6px;
     border-radius: 2px;
@@ -20,10 +21,10 @@
       background-position: -100% 0;
     }
   }
-  
+
 /* Container default */
 .p-container {
-  padding: 10px;
+  padding: 10px 2px;
   background: white;
 }
 
@@ -93,6 +94,7 @@
   id='threshold-data'
   data-threshold='{{ shop.metafields.spending_goal.goal_discounts.value | json }}'
   data-currency='{{ shop.currency  }}'
+  data-theme-name='{{ theme.name }}'
   style="display: none;"
   hidden
 ></div>
@@ -103,6 +105,12 @@
   window.goal_discounts = {goals: {{ shop.metafields.spending_goal.goal_discounts.value | json }}};
   console.log('Goal Discounts:', window.goal_discounts);
 </script>
+
+<h1>{{ theme.name }}</h1>
+  <div style="position:fixed;bottom:0;left:0;background:#000;color:#fff;z-index:9999;padding:5px;">
+    Theme: {{ theme.name }}
+  </div>
+
 
 {% schema %}
 {

@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const thresholdData = document.getElementById("threshold-data");
   const currency = thresholdData.getAttribute("data-currency") || "USD";
 
+  console.log("theme", thresholdData.getAttribute("data-theme-name"));
   console.log("Final Used Sceme");
 
   // Parse the JSON array from Liquid
@@ -53,25 +54,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const observer = new MutationObserver(() => {
-    const cartDrawerFooter = document.querySelector(
-      "#CartDrawer .drawer__footer",
-    );
-    if (cartDrawerFooter && !document.querySelector("#my-progressbar")) {
+    const cartDrawer = document.querySelector("#CartDrawer .drawer__footer");
+    console.log("inside the Main Observer");
+    if (cartDrawer && !document.querySelector("#my-progressbar")) {
       const wrapper = document.createElement("div");
       wrapper.id = "my-progressbar";
       wrapper.style.marginBottom = "8px";
       wrapper.innerHTML = `
-        <div class="progress-text">Add <span class="amount skeleton-loader" style="display: inline-block;">${currency}${amount}</span> more for <span class="percentage skeleton-loader" style="display: inline-block;">${percentage}%</span> Off in shipping</div>
-  <div class="progress-bar">
+        <div class="progress-text">Add <span class="amount skeleton-loader" style="display: inline-block;">Rs.0.0</span> more for <span class="percentage skeleton-loader" style="display: inline-block;">0%</span> Off in shipping</div>
+  <div class="p-container">
+        <div class="progress-bar">
     <div class="progress progress-fill"  style="width: ${progressBar}%;"> 
-      <div class="glow"></div>
+      <div class="glow" style="display: inline-block;"></div>
     </div>
   </div>
+</div>
 </div>
       `;
 
       // Insert before .drawer__footer element (as sibling)
-      cartDrawerFooter.insertAdjacentElement("beforebegin", wrapper);
+      cartDrawer.insertAdjacentElement("beforebegin", wrapper);
 
       updateProgressBar();
     }
@@ -100,10 +102,13 @@ document.addEventListener("DOMContentLoaded", () => {
       "#my-progressbar .progress-fill",
     );
 
-    if (!progressText || !progressFill) return;
+    if (!progressText || !progressFill) {
+      console.warn("Progress bar elements not found.");
+      return;
+    }
 
     if (cartTotal >= threshold) {
-      progressText.textContent = "🎉 You’ve unlocked FREE shipping!";
+      progressText.textContent = "🎉 You’ve eligible for FREE shipping!";
       if (
         document.querySelector("cart-drawer").classList.contains("active") &&
         !confiteeBlasted
@@ -135,11 +140,16 @@ document.addEventListener("DOMContentLoaded", () => {
         confiteeBlasted = true;
       }
     } else {
-      const remaining = (threshold - cartTotal).toFixed(2);
+      const remaining = (threshold - cartTotal).toFixed(2) / 100;
       moneyText.classList.remove("skeleton-loader");
       percentageText.classList.remove("skeleton-loader");
-      amount = remaining / 100;
-      percentage = nextGoal.discount;
+      moneyText.textContent = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currency,
+      }).format(remaining);
+      percentageText.textContent = nextGoal
+        ? `${nextGoal.discount}%`
+        : `${unlockedDiscount.discount}%`;
       if (confiteeBlasted) {
         confiteeBlasted = false;
       }
