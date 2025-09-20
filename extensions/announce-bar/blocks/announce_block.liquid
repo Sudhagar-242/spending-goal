@@ -51,10 +51,10 @@
 
 <div class="spending-goal-bar" id="spending-goal-bar">
   <p id="spending-goal-text" aria-live="polite">Loading...</p>
-  <div class="progress"><div class="progress-fill"></div></div>
+  <div class="progress" style="display: block;"><div class="progress-fill" style="display: block;"></div></div>
 </div>
 
-<script>
+{% comment %} <script>
 (function() {
   // Parse the JSON array from Liquid
   let goalDiscounts = [];
@@ -190,14 +190,115 @@ document.body.addEventListener('click',(event) => {
   }
   console.log("Click event detected:", event);
 }); {% endcomment %}
+</script> {% endcomment %}
+
+{% assign goal_discounts = shop.metafields.spending_goal.goal_discounts.value %}
+...
+<script>
+(function() {
+  let goalDiscounts = {{ goal_discounts | json }};
+  if (!Array.isArray(goalDiscounts)) goalDiscounts = [];
+
+  // Filter and sort valid goals
+  goalDiscounts = goalDiscounts
+    .filter(g => typeof g.amount === "number" && g.amount > 0 && typeof g.discount === "number" && g.discount > 0)
+    .sort((a, b) => a.amount - b.amount);
+
+  const SHOP_CURRENCY = "{{ shop.currency }}";
+  const bar = document.getElementById('spending-goal-bar');
+  const textEl = document.getElementById('spending-goal-text');
+  const progressFill = bar.querySelector('.progress-fill');
+
+  function formatMoney(cents) {
+    return (cents / 100).toLocaleString(undefined, {
+      style: 'currency',
+      currency: SHOP_CURRENCY
+    });
+  }
+
+  function getCurrentGoal(cartTotal) {
+    let nextGoal = null;
+    let unlockedDiscount = null;
+    for (let i = 0; i < goalDiscounts.length; i++) {
+      if (cartTotal < goalDiscounts[i].amount) {
+        nextGoal = goalDiscounts[i];
+        break;
+      }
+      unlockedDiscount = goalDiscounts[i];
+    }
+    return { nextGoal, unlockedDiscount };
+  }
+
+  function updateSpendingGoal(cart) {
+    if (!bar || !textEl || !progressFill) return;
+    if (!goalDiscounts.length || cart.item_count === 0) {
+      bar.setAttribute('hidden', 'hidden');
+      textEl.textContent = 'No goals set yet.';
+      return;
+    } else {
+      bar.removeAttribute('hidden');
+    }
+
+    const cartTotal = cart.total_price;
+    const { nextGoal, unlockedDiscount } = getCurrentGoal(cartTotal);
+
+    if (nextGoal) {
+      const percent = Math.min(Math.max((cartTotal / nextGoal.amount) * 100, 0), 100);
+      progressFill.style.width = percent + '%';
+      const amountLeft = Math.max(nextGoal.amount - cartTotal, 0);
+      textEl.textContent = `Spend ${formatMoney(amountLeft)} more to unlock ${nextGoal.discount}% discount on Shipping (${percent.toFixed(0)}% progress)`;
+    } else if (unlockedDiscount) {
+      progressFill.style.width = '100%';
+      textEl.textContent = `🎉 Congratulations! You unlocked ${unlockedDiscount.discount}% discount on Shipping!`;
+    } else {
+      progressFill.style.width = '0%';
+      textEl.textContent = 'No goals set yet.';
+    }
+  }
+
+  function fetchAndUpdateGoal() {
+    fetch('/cart.js')
+      .then(response => response.json())
+      .then(cart => updateSpendingGoal(cart))
+      .catch(() => {
+        bar.setAttribute('hidden', 'hidden');
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', fetchAndUpdateGoal);
+
+  document.addEventListener('submit', function(event) {
+    if (
+      event.target.matches('form[action^="/cart/add"]') ||
+      event.target.matches('form[action^="/cart/change"]') ||
+      event.target.matches('form[action^="/cart/update"]') ||
+      event.target.matches('form[action^="/cart/clear"]')
+    ) {
+      setTimeout(fetchAndUpdateGoal, 1500);
+    }
+  });
+
+  document.addEventListener('click', function(event) {
+    if (
+      event.target.matches('button[name="update"]') ||
+      event.target.matches('input[name="update"]') ||
+      event.target.closest('form[action="/cart"]') ||
+      event.target.matches('button[name="checkout"]') ||
+      event.target.matches('a[href="/checkout"]')
+    ) {
+      setTimeout(fetchAndUpdateGoal, 1500);
+    }
+  });
+})();
 </script>
+
 
 {% schema %}
 {
   "name": "Cart Discount Goal",
-  "target": "body",
+  "target": "section",
   "enabled_on": {
-    "templates": ["cart"]
+    "templates": ["cart","product"]
   },
   "settings": []
 }

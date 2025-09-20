@@ -383,10 +383,12 @@
         {% for item in cart.items %}
           <li class="sd-cart-drawer-item" data-line="{{ forloop.index }}">
             <img
-              src="{{ item.image | img_url: 'small' }}"
+              src="{{ item.image | image_url: 'small' }}"
               alt="{{ item.title }}"
               class="sd-cart-item-image"
               loading="lazy"
+              width=""
+              height=""
             >
             <div class="sd-cart-item-details">
               <p class="sd-cart-item-title">{{ item.product.title }}</p>
@@ -471,7 +473,7 @@
 
     {% else %}
       <div class="sd-cart-empty">
-        <img src="{{ 'empty-cart.png' | asset_url }}" alt="Empty cart illustration" class="sd-cart-empty-image">
+        {% comment %} <img src="{{ '' | asset_url }}" alt="Empty cart illustration" class="sd-cart-empty-image" width="" height=""> {% endcomment %}
         <p>Your cart is empty.</p>
         <p>Start adding some products to your cart.</p>
       </div>

@@ -1,5 +1,5 @@
-let amount = 0;
-let percentage = 0;
+// let amount = 0;
+// let percentage = 0;
 let progressBar = 0;
 let confiteeBlasted = false;
 // Example HTML structure to be injected
@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (cartTotal >= threshold) {
+    if (cartTotal > threshold) {
       progressText.textContent = "🎉 You’ve eligible for FREE shipping!";
       if (
         document.querySelector("cart-drawer").classList.contains("active") &&
@@ -125,6 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.appendChild(confettiCanvas);
 
         // Use confetti with this canvas as the target
+        // eslint-disable-next-line no-undef
         const myConfetti = confetti.create(confettiCanvas, {
           resize: true,
           useWorker: true,
