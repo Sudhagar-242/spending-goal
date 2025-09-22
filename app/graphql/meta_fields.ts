@@ -2,6 +2,8 @@
 export const SHOP_AND_GOAL_QUERY = `query ShopAndCartGoal {
     shop {
       id
+      name
+      url
       currencyCode
       goalDiscounts: metafield(namespace: "spending_goal", key: "goal_discounts") {
         id

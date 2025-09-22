@@ -95,6 +95,7 @@
   data-threshold='{{ shop.metafields.spending_goal.goal_discounts.value | json }}'
   data-currency='{{ shop.currency  }}'
   data-theme-name='{{ theme.name }}'
+  data-theme-name='{{ shop.metafields["zuper-shipping-threshold"].theme_name.value }}'
   style="display: none;"
   hidden
 ></div>
@@ -104,13 +105,19 @@
 <script async>
   window.goal_discounts = {goals: {{ shop.metafields.spending_goal.goal_discounts.value | json }}};
   console.log('Goal Discounts:', window.goal_discounts);
+  console.log('Theme Name:', '{{ theme.name }}');
+  
+  function discountGoals(data) {
+    let goalDiscounts = [];
+    try {
+      goalDiscounts = JSON.parse(data) || [];
+      if (!Array.isArray(goalDiscounts)) goalDiscounts = [];
+    } catch (e) {
+      goalDiscounts = [];
+    }
+    return goalDiscounts;
+  }
 </script>
-
-<h1>{{ theme.name }}</h1>
-  <div style="position:fixed;bottom:0;left:0;background:#000;color:#fff;z-index:9999;padding:5px;">
-    Theme: {{ theme.name }}
-  </div>
-
 
 {% schema %}
 {

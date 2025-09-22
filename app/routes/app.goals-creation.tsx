@@ -11,9 +11,10 @@ import {
   Toast,
   Frame,
   Text,
+  Modal,
 } from "@shopify/polaris";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { authenticate } from "../models/shopify.server";
+import shopify,{ authenticate,apiVersion } from "../models/shopify.server";
 
 import {
   SHOP_AND_GOAL_QUERY,
@@ -35,8 +36,23 @@ import type {
 } from "../types/app_create-goal";
 import type { AdminApiContextWithoutRest } from "@shopify/shopify-app-remix/dist/ts/server/clients";
 import { ensureDiscountExists } from "app/utils/create-discount-function-existance";
+import GoalEditModal from "app/components/goalEditModal";
+import ScrollableProducts from "../components/ScrollableProducts";
 
 // --- Helper Functions ---
+
+const ShopDetails = {
+  url: "",
+  accessToken: "",
+  apiVersion: "",
+}
+
+function ShopDetailsSetter(domain: string, accessToken: string | undefined, apiVersion: string) {
+  if(!accessToken) return;
+  ShopDetails.url = domain;
+  ShopDetails.accessToken = accessToken;
+  ShopDetails.apiVersion = apiVersion;
+}
 
 async function requestQuery<T>(
   admin: AdminApiContextWithoutRest,
@@ -69,17 +85,19 @@ function parseGoalDiscounts(value: string | null | undefined): GoalDiscountsValu
 // --- Loader ---
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-
+  const { admin, session } = await authenticate.admin(request);
   try {
     const { shop } = await requestQuery<ShopData>(admin, SHOP_AND_GOAL_QUERY);
     if (shop) {
       const {
         id: shopId,
+        url,
         currencyCode,
         goalDiscounts,
         discountId,
       } = shop;
+      ShopDetailsSetter(url,session?.accessToken,apiVersion);
+      console.log({...ShopDetails})
       console.log("Discount ID",{...discountId})
       const goalDiscountArray = JSON.parse(goalDiscounts?.value as string) as GoalDiscountsValue[];
       return { shopId, currencyCode, goalDiscountArray, discountId, error: "" };
@@ -151,6 +169,24 @@ export async function action({ request }: ActionFunctionArgs) {
     if (Number.isFinite(removeIdx)) {
       goalDiscountsArray = goalDiscountsArray.filter((_, idx) => idx !== removeIdx);
     }
+  } else if (actionType === "edit") {
+    const editingIndexRaw = formData.get("editingIndex");
+    const editingIndex = typeof editingIndexRaw === "string" ? parseInt(editingIndexRaw, 10) : NaN;
+    const cartGoalRaw = formData.get("cart_goal") ?? "";
+    const discountPercentRaw = formData.get("discount_percent") ?? "";
+    const successMessageRaw = formData.get("success_message") ?? "";
+    const progressMessageRaw = formData.get("progress_message") ?? "";
+    goalDiscountsArray = goalDiscountsArray.map((pair, idx) => {
+      if (idx === editingIndex) {
+        return {
+          amount: Number.parseInt(cartGoalRaw as string, 10) * 100,
+          discount: Number.parseInt(discountPercentRaw as string, 10),
+          successMessage: successMessageRaw.toString(),
+          progressMessage: progressMessageRaw.toString(),
+        };
+      }
+      return pair;
+    });
   }
 
   // Save updated array
@@ -246,6 +282,7 @@ export default function SpendingGoalPage() {
   const fetcher = useFetcher<typeof action>();
 
   const submitting = fetcher.state !== "idle";
+  const [rerender, setRerender] = useState(false)
   const [goal, setGoal] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
   const [toastOpen, setToastOpen] = useState(false);
@@ -253,6 +290,17 @@ export default function SpendingGoalPage() {
   const [removingIndex, setRemovingIndex] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string>("🎉 You unlocked {discount}% off!");
   const [progressMessage, setProgressMessage] = useState<string>("Spend {amountLeft} more to unlock {discount}% off ({percent}% progress)");
+
+const [shopDetailsReady, setShopDetailsReady] = useState(false);
+const [shopUrl, setShopUrl] = useState('');
+const [apiVersionState, setApiVersionState] = useState('');
+const [accessToken, setAccessToken] = useState('');
+
+
+// edit 
+
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (fetcher.data) {
@@ -272,8 +320,40 @@ export default function SpendingGoalPage() {
   useEffect(() => {
     if (fetcher.state === "idle") {
       setRemovingIndex(null);
+      setEditingIndex(null);
+      setEditModalOpen(false);
     }
   }, [fetcher.state]);
+  // Handle edit button click
+  const handleEditClick = (idx: number) => {
+    setEditingIndex(idx);
+    setEditModalOpen(true);
+  };
+
+ useEffect(() => {
+  if (ShopDetails.url && ShopDetails.apiVersion && ShopDetails.accessToken) {
+    setShopUrl(ShopDetails.url);
+    setApiVersionState(ShopDetails.apiVersion);
+    setAccessToken(ShopDetails.accessToken);
+    setShopDetailsReady(true); // ✅ Trigger re-render
+  }
+}, []);
+
+  
+
+  // Handle edit modal submit
+  const handleEditSubmit = (e: React.FormEvent,goal: GoalDiscountsValue) => {
+    e.preventDefault();
+    fetcher.submit({
+      ownerId: shopId ?? "",
+      actionType: "edit",
+      editingIndex: editingIndex,
+      cart_goal: goal.amount,
+      discount_percent: goal.discount,
+      success_message: goal.successMessage,
+      progress_message: goal.progressMessage,
+    }, { method: "post" });
+  };
 
   const handleGoalChange = useCallback((val: string) => {
     setGoal(val.replace(/[^0-9]/g, ""));
@@ -353,6 +433,20 @@ export default function SpendingGoalPage() {
                 </BlockStack>
               </fetcher.Form>
               <BlockStack gap="200">
+                <BlockStack gap="200">
+                  {shopDetailsReady ? (
+  <ScrollableProducts
+    ShopUrl={shopUrl}
+    ApiVersion={apiVersionState}
+    AccessToken={accessToken}
+  />
+) : (
+  <Text as="p" variant="bodyMd" tone="subdued">
+    Loading products... (Shop details not available yet)
+  </Text>
+)}
+
+                </BlockStack>
                 <Text as="h3" variant="headingSm">
                   Current goal/discount pairs:
                 </Text>
@@ -363,24 +457,38 @@ export default function SpendingGoalPage() {
                 ) : (
                   <>
                     {goalDiscountArray.map((pair, idx) => (
-                      <Card key={idx} rounded="large" padding="400" shadow>
+                      <Card key={idx} padding="400">
                         <BlockStack gap="200">
                           <Text as="h4" variant="headingSm">
-                            Amount: {new Intl.NumberFormat(undefined, {
+                            Amount: {pair ? new Intl.NumberFormat(undefined, {
                               style: "currency",
                               currency: currencyCode,
-                            }).format(Number(pair?.amount) / 100)}
+                            }).format(Number(pair.amount) / 100) : "-"}
                           </Text>
                           <Text as="h4" variant="headingSm" tone="success">
-                            Discount: {pair?.discount}%
+                            Discount: {pair ? pair.discount : "-"}%
                           </Text>
                           <Text as="p" variant="bodySm" tone="subdued">
-                            Progress Message: <span style={{ fontStyle: "italic" }}>{pair.progressMessage}</span>
+                            Progress Message: <span style={{ fontStyle: "italic" }}>{pair && pair.progressMessage ? pair.progressMessage : ""}</span>
                           </Text>
                           <Text as="p" variant="bodySm" tone="success">
-                            Success Message: <span style={{ fontWeight: 500 }}>{pair.successMessage}</span>
+                            Success Message: <span style={{ fontWeight: 500 }}>{pair && pair.successMessage ? pair.successMessage : ""}</span>
                           </Text>
                           <InlineStack align="end">
+                            <Button
+                              variant="secondary"
+                              onClick={() => handleEditClick(idx)}
+                            >
+                              Edit
+                            </Button>
+                            {editModalOpen && editingIndex === idx && (
+                              <GoalEditModal
+                                editModalOpen={true}
+                                setEditModalOpen={setEditModalOpen}
+                                goal={pair as GoalDiscountsValue}
+                                setGoal={handleEditSubmit}
+                              />
+                            )}
                             <fetcher.Form
                               method="post"
                               onSubmit={() => setRemovingIndex(idx)}
@@ -391,7 +499,6 @@ export default function SpendingGoalPage() {
                               <Button
                                 submit
                                 variant="tertiary"
-                                destructive
                                 loading={removingIndex === idx && fetcher.state !== "idle"}
                               >
                                 Remove

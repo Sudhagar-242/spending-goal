@@ -37,7 +37,7 @@ async function updateMetaThemeName(
   metafieldsSet(metafields: [
     {
       ownerId: "${ShopId}", # Replace with your shop GID
-      namespace: "${metaKey}",
+      namespace: "${metaNameSpace}",
       key: "${metaKey}",
       type: "single_line_text_field",
       value: "${fetchedThemeName}"
@@ -98,6 +98,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const shopDomain = request.headers.get('X-Shopify-Shop-Domain');
     const apiVersion = request.headers.get('X-Shopify-API-Version');
+    console.log('Headers', request.headers );
 
     if (!ShopId) {
       if (shopDomain && session?.accessToken && apiVersion) {
@@ -114,11 +115,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Destructure actual theme payload
     const theme = payload as ThemePayload;
-
+    console.log('Payload', payload);
     if (theme.name != ThemeName && theme.role === 'main') {
       if (shopDomain && session?.accessToken && apiVersion) {
-        await updateMetaThemeName(shopDomain, session?.accessToken, apiVersion, theme.name);
-        console.log('ShopId: ', ShopId, ' Updated');
+        const data = await updateMetaThemeName(shopDomain, session?.accessToken, apiVersion, theme.name);
+        console.log('ShopId: ', ShopId,theme.name, ' Updated');
+        console.log('Metafield update response', { ...data.metafieldsSet.metafields });
       }
     }
 

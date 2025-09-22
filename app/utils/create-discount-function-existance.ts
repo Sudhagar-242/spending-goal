@@ -13,7 +13,7 @@ function buildDiscountInput(): Record<string, any> {
     title: DISCOUNT_TITLE,
     functionId: FUNCTION_ID,
     startsAt: new Date().toISOString(),
-    discountClasses: ['PRODUCT', 'SHIPPING', 'ORDER'],
+    // discountClasses: ['PRODUCT', 'SHIPPING', 'ORDER'],
     combinesWith: {
       orderDiscounts: true,
       productDiscounts: true,

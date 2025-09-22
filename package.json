@@ -16,9 +16,7 @@
     "shopify": "shopify",
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
-    "vite": "vite",
-    "format": "prettier --write \"app/**/*.{js,ts,tsx,json,md}\"",
-    "format:check": "prettier --check \"app/**/*.{js,ts,tsx,json,md}\""
+    "vite": "vite"
   },
   "type": "module",
   "engines": {
@@ -33,9 +31,10 @@
     "@remix-run/serve": "^2.16.1",
     "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^12.0.0",
-    "@shopify/shopify-app-remix": "^3.8.5",
+    "@shopify/shopify-app-remix": "^3.7.0",
     "@shopify/shopify-app-session-storage-prisma": "^6.0.0",
     "isbot": "^5.1.0",
+    "prisma": "^6.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "vite-tsconfig-paths": "^5.0.1"
@@ -51,7 +50,6 @@
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^10.0.1",
     "prettier": "^3.2.4",
-    "prisma": "^6.16.2",
     "typescript": "^5.2.2",
     "vite": "^6.2.2"
   },

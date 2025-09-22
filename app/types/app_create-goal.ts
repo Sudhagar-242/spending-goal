@@ -29,6 +29,7 @@ export interface ShopData {
 
 export interface Shop {
   id: string;
+  url: string;
   currencyCode: string;
   goalDiscounts: GoalDiscounts;
   discountId: DiscountId;
@@ -43,6 +44,8 @@ export interface GoalDiscounts {
 export type GoalDiscountsValue = {
   amount: string | number;
   discount: string | number;
+  successMessage: string;
+  progressMessage: string;
 };
 
 export interface DiscountId {
