@@ -111,6 +111,13 @@ export interface ProductsData {
         id: string;
         title: string;
         description: string;
+        featuredMedia?: {
+          preview: {
+            image: {
+              url: string;
+            };
+          };
+        };
       };
     }[];
     pageInfo: {

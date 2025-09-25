@@ -1,3 +1,4 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { useLoaderData, useFetcher, useActionData } from '@remix-run/react';
@@ -12,8 +13,12 @@ import {
   Frame,
   Text,
   ResourceList,
+  ChoiceList,
+  Layout,
+  Avatar,
+  ResourceItem,
 } from '@shopify/polaris';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { authenticate, apiVersion } from '../models/shopify.server';
 
 import { SHOP_AND_GOAL_QUERY, SET_GOAL_DISCOUNTS_METAFIELD } from '../graphql/meta_fields';
@@ -30,6 +35,8 @@ import GoalEditModal from 'app/components/goalEditModal';
 import { DiscountGoals } from 'app/enums/discount-goals';
 import { GET_PRODUCTS_WITH_CURSOR } from 'app/graphql/products';
 import ProductSelectionModal from '../components/ProductSelectionModal';
+import SpendingGoalWidget from 'app/components/example';
+import GoalCard from 'app/components/goal_card';
 
 // --- Helper Functions ---
 
@@ -74,17 +81,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (shop) {
       const { id: shopId, url, currencyCode, goalDiscounts, discountId } = shop;
       ShopDetailsSetter(url, session?.accessToken, apiVersion);
-      console.log({ ...ShopDetails });
-      console.log('Discount ID', { ...discountId });
       const goalDiscountArray = JSON.parse(goalDiscounts?.value as string) as GoalDiscountsValue[];
 
       const variables = { first: 10, after: null };
-      const { products: ProductsData } = await requestMutation<ProductsData>(
-        admin,
-        GET_PRODUCTS_WITH_CURSOR,
-        { variables },
-      );
-      const { edges: products, pageInfo } = ProductsData;
+      const { products, pageInfo } = await fetchAllProducts(admin, 200, null);
 
       return {
         shopId,
@@ -130,25 +130,27 @@ export async function action({ request }: ActionFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const ownerId = formData.get('ownerId')?.toString() ?? '';
-  const actionType = formData.get('actionType')?.toString() ?? "";
+  const actionType = formData.get('actionType')?.toString() ?? '';
 
   // Fetch existing metafields
   const { shop } = await requestQuery<ShopData>(admin, SHOP_AND_GOAL_QUERY);
   const { goalDiscounts, discountId } = shop;
   let goalDiscountsArray = JSON.parse(goalDiscounts?.value as string) as GoalDiscountsValue[];
 
-  // Ensure discount exists
-  await ensureDiscountExists(admin, discountId.id, ownerId);
+  // Only call ensureDiscountExists if discountId is missing or invalid
+  if (
+    [DiscountGoals.ADD, DiscountGoals.REMOVE, DiscountGoals.EDIT].includes(actionType as any) &&
+    (!discountId || !discountId.id)
+  ) {
+    await ensureDiscountExists(admin, discountId?.id, ownerId);
+  }
 
   // Handle add/remove/edit
   switch (actionType) {
     case 'products':
-      const variables = { first: 10, after: null };
-      const { products: ProductsData } = await requestMutation<ProductsData>(admin,GET_PRODUCTS_WITH_CURSOR,{ variables });
-      console.log('Products Data Fetched in Action:', ProductsData);
-      const { edges: products, pageInfo } = ProductsData;
-      return json({ products, pageInfo });
-      break;
+      const { products, pageInfo } = await fetchAllProducts(admin, 200, null, []);
+      console.log(JSON.stringify(products));
+      return;
     case DiscountGoals.ADD:
       goalDiscountsArray.push(addGoals(formData, goalDiscountsArray) as GoalDiscountsValue);
       break;
@@ -232,20 +234,31 @@ function editGoal(formData: FormData) {
 }
 
 //--- Products ---
-// async function fetchProducts(admin: AdminApiContextWithoutRest) {
-//   const variables = { first: 20, after: null };
-//   console.log("OutSide Closure Executes");
-//   return async () => {
-//     const { products: ProductsData } = await requestMutation<ProductsData>(
-//       admin,
-//       GET_PRODUCTS_WITH_CURSOR,
-//       variables,
-//     );
-//     const { edges: products, pageInfo } = ProductsData;
-//     console.log("Closure Executes");
-//     return { products, pageInfo };
-//   };
-// }
+async function fetchAllProducts(
+  admin: AdminApiContextWithoutRest,
+  first: number = 200,
+  after: string | null = null,
+  accumulated: ProductsData['products']['edges'] = [],
+): Promise<{
+  products: ProductsData['products']['edges'];
+  pageInfo: ProductsData['products']['pageInfo'];
+}> {
+  const variables = { first, after };
+  const { products: ProductsData } = await requestMutation<ProductsData>(
+    admin,
+    GET_PRODUCTS_WITH_CURSOR,
+    { variables },
+  );
+  const { edges: products, pageInfo } = ProductsData;
+  const allProducts = [...accumulated, ...products];
+
+  if (pageInfo.hasNextPage && products.length > 0) {
+    const lastCursor = products[products.length - 1]?.cursor;
+    return fetchAllProducts(admin, first, lastCursor, allProducts);
+  }
+
+  return { products: allProducts, pageInfo };
+}
 
 // --- React UI ---
 
@@ -272,6 +285,11 @@ export default function SpendingGoalPage() {
   // edit
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // products browse modal
+  const [openProductsModal, setOpenProductsModal] = useState(false);
+
+  const [Radio, setRadio] = useState<string[]>(['none']);
 
   // product selection
   // const [productSelectionModalOpen, setProductSelectionModalOpen] = useState(false);
@@ -312,6 +330,7 @@ export default function SpendingGoalPage() {
         ownerId: shopId ?? '',
         actionType: 'edit',
         editingIndex: editingIndex,
+        goal_name: goal.name,
         cart_goal: goal.amount,
         discount_percent: goal.discount,
         success_message: goal.successMessage,
@@ -345,6 +364,8 @@ export default function SpendingGoalPage() {
     },
     [goalDiscountArray],
   );
+
+  const handleChoiceListChange = useCallback((value: string[]) => setRadio(value), []);
 
   const handleDiscountChange = useCallback((val: string) => {
     setDiscount(val.replace(/[^0-9]/g, ''));
@@ -429,45 +450,46 @@ export default function SpendingGoalPage() {
                   </InlineStack>
                 </BlockStack>
               </fetcher.Form>
+
+              <BlockStack>
+                <SpendingGoalWidget />
+              </BlockStack>
+
+              <BlockStack>
+                <Layout>
+                  <Layout.Section>
+                    <ResourceList
+                      resourceName={{ singular: 'product', plural: 'products' }}
+                      items={products ?? []}
+                      renderItem={(item) => {
+                        const { id, title, featuredMedia } = item.node;
+                        const media = (
+                          <Avatar
+                            size="md"
+                            name={title}
+                            source={featuredMedia?.preview?.image?.url}
+                          />
+                        );
+
+                        return (
+                          <ResourceItem
+                            id={id}
+                            url="#"
+                            media={media}
+                            accessibilityLabel={`View details for ${title}`}
+                          >
+                            <Text variant="bodyMd" fontWeight="bold" as="h3">
+                              {title}
+                            </Text>
+                          </ResourceItem>
+                        );
+                      }}
+                    />
+                  </Layout.Section>
+                </Layout>
+              </BlockStack>
+
               <BlockStack gap="200">
-                {/* <BlockStack gap="200">
-                  { products && pageInfo ? (
-                    <Card>
-                    <Button onClick={() => setProductSelectionModalOpen(prev => !prev)}>Select Products</Button>
-                    <Text as="p">{JSON.stringify(products)}</Text>
-                    <Text as="p">{JSON.stringify(pageInfo)}</Text>
-                  </Card>) : <Text as="p">No Products Fetched</Text> }
-                  {productSelectionModalOpen &&
-                    <ProductSelectionModal
-                    open={productSelectionModalOpen}
-                    onClose={() => setProductSelectionModalOpen(false)}
-                    onSubmit={(data) => fetcher.submit(data, { method: "post" })}
-                    products={products  ?? [] as ProductsData["products"]['edges'] }
-                  />
-                  }
-                  {actionData ? (
-                    <>
-                      <Text as="p">Fetched Products:</Text>
-                      <ResourceList
-                        items={actionData.products}
-                        renderItem={(item) => {
-                          return (
-                            <ResourceList.Item
-                              id={item.node.id}
-                              name={item.node.title}
-                              onClick={() => console.log("Clicked", item)}
-                            >
-                              <Text variant="bodyMd" as="p">{item.node.title}</Text>
-                            </ResourceList.Item>
-                          );
-                        }}
-                      />
-                    </>
-                  ) : <Card>
-                    <Text as="p">No products Selected</Text>
-                    </Card>}
-                    <Text as="p">{JSON.stringify(actionData)}</Text>
-                </BlockStack> */}
                 <Text as="h3" variant="headingSm">
                   Current goal/discount pairs:
                 </Text>
@@ -478,62 +500,92 @@ export default function SpendingGoalPage() {
                 ) : (
                   <>
                     {goalDiscountArray.map((pair, idx) => (
-                      <Card key={idx} padding="400">
-                        <BlockStack gap="200">
-                          <Text as="h4" variant="bodySm" tone="success">
-                            Goal Name: {pair && pair.name ? pair.name : ''}
-                          </Text>
-                          <Text as="h4" variant="headingSm">
-                            Amount:{' '}
-                            {pair
-                              ? new Intl.NumberFormat(undefined, {
-                                  style: 'currency',
-                                  currency: currencyCode,
-                                }).format(Number(pair.amount) / 100)
-                              : '-'}
-                          </Text>
-                          <Text as="h4" variant="headingSm" tone="success">
-                            Discount: {pair ? pair.discount : '-'}%
-                          </Text>
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            Progress Message:{' '}
-                            <span style={{ fontStyle: 'italic' }}>
-                              {pair && pair.progressMessage ? pair.progressMessage : ''}
-                            </span>
-                          </Text>
-                          <Text as="p" variant="bodySm" tone="success">
-                            Success Message:{' '}
-                            <span style={{ fontWeight: 500 }}>
-                              {pair && pair.successMessage ? pair.successMessage : ''}
-                            </span>
-                          </Text>
-                          <InlineStack align="end">
-                            <Button variant="secondary" onClick={() => handleEditClick(idx)}>
-                              Edit
-                            </Button>
-                            {editModalOpen && editingIndex === idx && (
-                              <GoalEditModal
-                                editModalOpen={true}
-                                setEditModalOpen={setEditModalOpen}
-                                goal={pair as GoalDiscountsValue}
-                                setGoal={handleEditSubmit}
-                              />
-                            )}
-                            <fetcher.Form method="post" onSubmit={() => setRemovingIndex(idx)}>
-                              <input type="hidden" name="ownerId" value={shopId ?? ''} />
-                              <input type="hidden" name="actionType" value="remove" />
-                              <input type="hidden" name="removeIdx" value={idx} />
-                              <Button
-                                submit
-                                variant="tertiary"
-                                loading={removingIndex === idx && fetcher.state !== 'idle'}
-                              >
-                                Remove
-                              </Button>
-                            </fetcher.Form>
-                          </InlineStack>
-                        </BlockStack>
-                      </Card>
+                      <React.Fragment key={idx}>
+                        <GoalCard
+                          goal={pair!}
+                          index={idx}
+                          currencyCode={currencyCode}
+                          isEditModalOpen={editModalOpen}
+                          setEditModalOpen={setEditModalOpen}
+                          removingIndex={removingIndex}
+                          setRemovingIndex={setRemovingIndex}
+                          onEditClick={() => handleEditClick(idx)}
+                          editingIndex={editingIndex}
+                          fetcher={fetcher}
+                          shopId={shopId}
+                        />
+                        {editModalOpen && editingIndex === idx && (
+                          <GoalEditModal
+                            editModalOpen={true}
+                            setEditModalOpen={setEditModalOpen}
+                            goal={pair as GoalDiscountsValue}
+                            setGoal={handleEditSubmit}
+                          />
+                        )}
+                      </React.Fragment>
+                      // <Card key={idx} padding="400">
+                      //   <BlockStack gap="200">
+                      //     <Text as="h4" variant="bodySm" tone="success">
+                      //       Goal Name: {pair && pair.name ? pair.name : ''}
+                      //     </Text>
+                      //     <Text as="h4" variant="headingSm" tone="success">
+                      //       Amount: {Number(pair?.amount) / 100}
+                      //     </Text>
+                      //     <Text as="h4" variant="headingSm">
+                      //       Amount:{' '}
+                      //       {pair
+                      //         ? new Intl.NumberFormat(
+                      //             typeof navigator !== 'undefined' ? navigator.language : 'en-IN',
+                      //             {
+                      //               style: 'currency',
+                      //               currency: currencyCode,
+                      //             },
+                      //           ).format(Number(pair.amount) / 100)
+                      //         : '-'}
+                      //     </Text>
+
+                      //     <Text as="h4" variant="headingSm" tone="success">
+                      //       Discount: {pair ? pair.discount : '-'}%
+                      //     </Text>
+                      //     <Text as="p" variant="bodySm" tone="subdued">
+                      //       Progress Message:{' '}
+                      //       <span style={{ fontStyle: 'italic' }}>
+                      //         {pair && pair.progressMessage ? pair.progressMessage : ''}
+                      //       </span>
+                      //     </Text>
+                      //     <Text as="p" variant="bodySm" tone="success">
+                      //       Success Message:{' '}
+                      //       <span style={{ fontWeight: 500 }}>
+                      //         {pair && pair.successMessage ? pair.successMessage : ''}
+                      //       </span>
+                      //     </Text>
+                      //     <InlineStack align="end">
+                      //       <Button variant="secondary" onClick={() => handleEditClick(idx)}>
+                      //         Edit
+                      //       </Button>
+                      //       {editModalOpen && editingIndex === idx && (
+                      //         <GoalEditModal
+                      //           editModalOpen={true}
+                      //           setEditModalOpen={setEditModalOpen}
+                      //           goal={pair as GoalDiscountsValue}
+                      //           setGoal={handleEditSubmit}
+                      //         />
+                      //       )}
+                      //       <fetcher.Form method="post" onSubmit={() => setRemovingIndex(idx)}>
+                      //         <input type="hidden" name="ownerId" value={shopId ?? ''} />
+                      //         <input type="hidden" name="actionType" value="remove" />
+                      //         <input type="hidden" name="removeIdx" value={idx} />
+                      //         <Button
+                      //           submit
+                      //           variant="tertiary"
+                      //           loading={removingIndex === idx && fetcher.state !== 'idle'}
+                      //         >
+                      //           Remove
+                      //         </Button>
+                      //       </fetcher.Form>
+                      //     </InlineStack>
+                      //   </BlockStack>
+                      // </Card>
                     ))}
                   </>
                 )}

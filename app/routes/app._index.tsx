@@ -442,7 +442,6 @@ import {
   Layout,
   Page,
   Text,
-  DataTable,
   Badge,
   InlineStack,
   BlockStack,
@@ -454,6 +453,7 @@ import { useEffect } from 'react';
 import { requestQuery } from './app.goals-creation';
 import { SHOP_AND_GOAL_QUERY } from 'app/graphql/meta_fields';
 import type { GoalDiscountsValue, ShopData } from 'app/types/app_create-goal';
+import GoalCard from 'app/components/goal_card';
 
 // Dummy data for analytics
 const dummyAnalyticsData = {
@@ -565,37 +565,7 @@ export default function Index() {
               ) : (
                 <>
                   {goalDiscountArray.map((pair, idx) => (
-                    <Card key={idx} padding="400">
-                      <BlockStack gap="200">
-                        <Text as="h4" variant="bodySm" tone="success">
-                          Goal Name: {pair && pair.name ? pair.name : ''}
-                        </Text>
-                        <Text as="h4" variant="headingSm">
-                          Amount:{' '}
-                          {pair
-                            ? new Intl.NumberFormat(undefined, {
-                                style: 'currency',
-                                currency: currencyCode,
-                              }).format(Number(pair.amount) / 100)
-                            : '-'}
-                        </Text>
-                        <Text as="h4" variant="headingSm" tone="success">
-                          Discount: {pair ? pair.discount : '-'}%
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          Progress Message:{' '}
-                          <span style={{ fontStyle: 'italic' }}>
-                            {pair && pair.progressMessage ? pair.progressMessage : ''}
-                          </span>
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="success">
-                          Success Message:{' '}
-                          <span style={{ fontWeight: 500 }}>
-                            {pair && pair.successMessage ? pair.successMessage : ''}
-                          </span>
-                        </Text>
-                      </BlockStack>
-                    </Card>
+                    <GoalCard goal={pair!} index={idx} key={idx} currencyCode={currencyCode} />
                   ))}
                 </>
               )}
