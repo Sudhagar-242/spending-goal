@@ -1,147 +1,76 @@
-import { MoneyV2 } from "app/types/admin.types";
+import { MoneyV2 } from 'app/types/admin.types';
 import {
   DiscountClass,
   OrderDiscountSelectionStrategy,
   ProductDiscountSelectionStrategy,
   CartInput,
   CartLinesDiscountsGenerateRunResult,
-} from "../generated/api";
+} from '../generated/api';
 
-interface goal {
+interface Goal {
   amount: number;
   discount: number;
+  successMessage?: string;
+  progressMessage?: string;
 }
 
 export function cartLinesDiscountsGenerateRun(
   input: CartInput,
 ): CartLinesDiscountsGenerateRunResult {
   if (!input.cart.lines.length) {
-    throw new Error("No cart lines found");
+    throw new Error('No cart lines found');
   }
 
-  const hasOrderDiscountClass = input.discount.discountClasses.includes(
-    DiscountClass.Order,
-  );
-  const hasProductDiscountClass = input.discount.discountClasses.includes(
-    DiscountClass.Product,
-  );
+  const hasOrderDiscountClass = input.discount.discountClasses.includes(DiscountClass.Order);
+  const hasProductDiscountClass = input.discount.discountClasses.includes(DiscountClass.Product);
 
   if (!hasOrderDiscountClass && !hasProductDiscountClass) {
     return { operations: [] };
   }
 
-  const maxCartLine = input.cart.lines.reduce((maxLine, line) => {
-    if (line.cost.subtotalAmount.amount > maxLine.cost.subtotalAmount.amount) {
-      return line;
-    }
-    return maxLine;
-  }, input.cart.lines[0]);
+  // Parse goals from metafield
+  const goalDiscounts: GoalDiscountsValue[] = Array.isArray(input.shop.metafield?.jsonValue)
+    ? input.shop.metafield.jsonValue.map((item: Goal) => ({
+        ...item,
+        amount: Number(item.amount) / 100, // Convert cents to currency
+      }))
+    : [];
 
-  const operations = [];
-
-  console.log(
-    JSON.stringify(input.shop.metafield?.jsonValue),
-    input.cart.cost.subtotalAmount.amount,
-  );
-
-  function getCurrentGoal(cartTotal: MoneyV2) {
-    let nextGoal: goal | null = null;
-    let unlockedDiscount: goal | null = null;
-    const goalDiscounts = input.shop.metafield?.jsonValue.map((item: goal) => {
-      item.amount = Number(item.amount / 100);
-      return { ...item };
-    });
+  // Find the best unlocked goal and the next goal
+  function getCurrentGoal(cartTotal: number) {
+    let nextGoal: Goal | null = null;
+    let unlockedGoal: Goal | null = null;
+    const goalDiscounts = Array.isArray(input.shop.metafield?.jsonValue)
+      ? input.shop.metafield.jsonValue.map((item: Goal) => ({
+          ...item,
+          amount: Number(item.amount) / 100,
+        }))
+      : [];
     for (let i = 0; i < goalDiscounts.length; i++) {
       if (cartTotal < goalDiscounts[i].amount) {
         nextGoal = goalDiscounts[i];
         break;
       }
-      unlockedDiscount = goalDiscounts[i];
+      unlockedGoal = goalDiscounts[i];
     }
-    console.log(
-      "getCurrentGoal:",
-      JSON.stringify({ cartTotal, nextGoal, unlockedDiscount }),
-      input.cart.cost.subtotalAmount.amount,
-    );
-    return { nextGoal, unlockedDiscount };
+    return { nextGoal, unlockedGoal };
   }
 
-  const { nextGoal, unlockedDiscount } = getCurrentGoal(
-    input.cart.cost.totalAmount.amount,
-  );
+  const cartTotal = input.cart.cost.totalAmount.amount;
+  const { nextGoal, unlockedGoal } = getCurrentGoal(cartTotal);
 
-  // if (hasOrderDiscountClass) {
-  //   operations.push({
-  //     orderDiscountsAdd: {
-  //       candidates: [
-  //         {
-  //           message: "10% OFF ORDER",
-  //           targets: [
-  //             {
-  //               orderSubtotal: {
-  //                 excludedCartLineIds: [],
-  //               },
-  //             },
-  //           ],
-  //           value: {
-  //             percentage: {
-  //               value: 10,
-  //             },
-  //           },
-  //         },
-  //       ],
-  //       selectionStrategy: OrderDiscountSelectionStrategy.First,
-  //     },
-  //   });
-  // }
-
-  // if (
-  //   hasProductDiscountClass &&
-  //   input.cart.cost.subtotalAmount?.amount >= 1000
-  // ) {
-  //   operations.push({
-  //     productDiscountsAdd: {
-  //       candidates: [
-  //         {
-  //           message: "20% OFF PRODUCT",
-  //           targets: [
-  //             {
-  //               cartLine: {
-  //                 id: maxCartLine.id,
-  //               },
-  //             },
-  //           ],
-  //           value: {
-  //             percentage: {
-  //               value: 20,
-  //             },
-  //           },
-  //         },
-  //       ],
-  //       selectionStrategy: ProductDiscountSelectionStrategy.First,
-  //     },
-  //   });
-  // }
-
-  const goal: goal = nextGoal
-    ? { ...nextGoal }
-    : unlockedDiscount
-      ? { ...unlockedDiscount }
-      : ({} as goal);
-
-  console.log("Fetched goal", JSON.stringify(goal));
+  // Apply the best discount (highest unlocked)
+  const operations = [];
 
   if (
     hasProductDiscountClass &&
-    input.cart.cost.subtotalAmount.amount >= (goal.amount || 1000)
-    // (Number(input.cart.cost.subtotalAmount.amount) >= nextGoal!.amount ||
-    //   Number(input.cart.cost.subtotalAmount.amount) >=
-    //     unlockedDiscount!.amount)
+    unlockedGoal &&
+    cartTotal >= unlockedGoal.amount // Only apply if cartTotal is at least the unlocked goal
   ) {
     operations.push({
       productDiscountsAdd: {
         candidates: input.cart.lines.map((line) => ({
-          message: "10% OFF ALL PRODUCTS",
+          message: `${unlockedGoal.discount}% OFF ALL PRODUCTS`,
           targets: [
             {
               cartLine: {
@@ -151,7 +80,7 @@ export function cartLinesDiscountsGenerateRun(
           ],
           value: {
             percentage: {
-              value: goal.discount || 10,
+              value: unlockedGoal.discount,
             },
           },
         })),
@@ -159,45 +88,44 @@ export function cartLinesDiscountsGenerateRun(
       },
     });
   }
-  // // Additional goal-based discounts if totalAmount exceeds 1000
-  // if (input.cart.cost.totalAmount.amount >= 1000) {
-  //   console.log("Total amount exceeds 1000, applying goal discounts");
-  //   const goal_discounts = input.shop.metafield?.jsonValue;
 
-  //   if (Array.isArray(goal_discounts)) {
-  //     goal_discounts.forEach((item, idx) => {
-  //       console.log(
-  //         `Goal Discount - Amount: ${item.amount}, Discount: ${item.discount}, Total: ${input.cart.cost.totalAmount.amount}`,
-  //       );
-  //     });
-  //   }
+  if (hasOrderDiscountClass && unlockedGoal && cartTotal >= unlockedGoal.amount) {
+    operations.push({
+      orderDiscountsAdd: {
+        candidates: [
+          {
+            message: unlockedGoal.successMessage || `${unlockedGoal.discount}% OFF ORDER`,
+            targets: [
+              {
+                orderSubtotal: {
+                  excludedCartLineIds: [],
+                },
+              },
+            ],
+            value: {
+              percentage: {
+                value: unlockedGoal.discount,
+              },
+            },
+          },
+        ],
+        selectionStrategy: OrderDiscountSelectionStrategy.First,
+      },
+    });
+  }
 
-  //   input.cart.lines.forEach((product, idx) => {
-  //     console.log(`Applying 30% OFF to product at index ${idx}`);
-  //     operations.push({
-  //       productDiscountsAdd: {
-  //         candidates: [
-  //           {
-  //             message: `30% OFF on ${product.id} PRODUCT`,
-  //             targets: [
-  //               {
-  //                 cartLine: {
-  //                   id: `${product.id}`, // Ensure this is a valid cart line ID format
-  //                 },
-  //               },
-  //             ],
-  //             value: {
-  //               percentage: {
-  //                 value: 30, // Apply 30% discount
-  //               },
-  //             },
-  //           },
-  //         ],
-  //         selectionStrategy: ProductDiscountSelectionStrategy.First,
-  //       },
-  //     });
-  //   });
-  // }
+  // Optionally, you can log or return progress info for the storefront
+  console.log(
+    'Discount logic:',
+    JSON.stringify({
+      cartTotal,
+      unlockedGoal,
+      nextGoal,
+      operations,
+    }),
+  );
+
+  console.log('Operations: ', JSON.stringify(operations));
 
   return {
     operations,

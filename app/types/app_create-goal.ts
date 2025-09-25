@@ -1,3 +1,22 @@
+export interface LoaderData {
+  shopId: string;
+  currencyCode: string;
+  goalDiscountArray: GoalDiscountsValue[];
+  discountId: string;
+  products: ProductsData['products']['edges'] | null;
+  pageInfo: ProductsData['products']['pageInfo'] | null;
+  error: string;
+}
+
+export interface ActionData {
+  ok: boolean;
+  userErrors?: Array<{ message: string }>;
+  metafields?: any;
+  goalDiscounts?: GoalDiscountsValue[];
+  products?: ProductsData['products']['edges'];
+  pageInfo?: ProductsData['products']['pageInfo'];
+}
+
 export interface GoalDiscount {
   amount: number;
   discount: number;
@@ -42,6 +61,7 @@ export interface GoalDiscounts {
 }
 
 export type GoalDiscountsValue = {
+  name: string;
   amount: string | number;
   discount: string | number;
   successMessage: string;
@@ -80,5 +100,22 @@ export interface discountAutomaticAppCreate {
       discountId: string;
     };
     userErrors: UserError[];
+  };
+}
+
+export interface ProductsData {
+  products: {
+    edges: {
+      cursor: string;
+      node: {
+        id: string;
+        title: string;
+        description: string;
+      };
+    }[];
+    pageInfo: {
+      hasNextPage: boolean;
+      endCursor: string;
+    };
   };
 }

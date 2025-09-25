@@ -1,51 +1,70 @@
-import React, { useState } from 'react'
-import { Modal,TextField, BlockStack, Button, InlineStack,Form, FormLayout } from '@shopify/polaris'
-import { GoalDiscountsValue } from 'app/types/app_create-goal';
+import React, { useState } from 'react';
+import {
+  Modal,
+  TextField,
+  BlockStack,
+  Button,
+  InlineStack,
+  Form,
+  FormLayout,
+} from '@shopify/polaris';
+import type { GoalDiscountsValue } from 'app/types/app_create-goal';
 
 interface modalProps {
   editModalOpen: boolean;
   setEditModalOpen: (open: boolean) => void;
   goal: GoalDiscountsValue;
-  setGoal: (event: React.FormEvent,goal: GoalDiscountsValue) => void;
+  setGoal: (event: React.FormEvent, goal: GoalDiscountsValue) => void;
 }
 
+export default function GoalEditModal({
+  editModalOpen,
+  setEditModalOpen,
+  goal,
+  setGoal,
+}: modalProps) {
+  const [name, setname] = useState(goal.name);
+  const [editGoal, setEditGoal] = useState((Number(goal.amount) / 100).toString());
+  const [editDiscount, setEditDiscount] = useState(goal.discount.toString());
+  const [editSuccessMessage, setEditSuccessMessage] = useState(goal.successMessage);
+  const [editProgressMessage, setEditProgressMessage] = useState(goal.progressMessage);
 
-export default function GoalEditModal({editModalOpen,setEditModalOpen,goal,setGoal}: modalProps) {
+  function Footer() {
+    return <p>Make sure to save changes before closing the modal.</p>;
+  }
 
-    const [editGoal, setEditGoal] = useState((Number(goal.amount)/100).toString());
-    const [editDiscount, setEditDiscount] = useState(goal.discount.toString());
-    const [editSuccessMessage, setEditSuccessMessage] = useState(goal.successMessage );
-    const [editProgressMessage, setEditProgressMessage] = useState(goal.progressMessage );
-
-    function Footer() {
-  return (
-    <p>Make sure to save changes before closing the modal.</p>
-  )
-}
-
-function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     const Goal = {
-        amount: Number(editGoal),
-        discount: Number(editDiscount),
-        successMessage: editSuccessMessage,
-        progressMessage: editProgressMessage
+      name: name,
+      amount: Number(editGoal),
+      discount: Number(editDiscount),
+      successMessage: editSuccessMessage,
+      progressMessage: editProgressMessage,
     };
-    console.log({...Goal});
-    setGoal(event,Goal);
+    setGoal(event, Goal);
     setEditModalOpen(false);
     event.preventDefault();
-}
+  }
 
   return (
-      <Modal
-        open={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        title="Edit Goal/Discount Pair"
-        footer={<Footer />}
-      >
-        <Form action='edit' onSubmit={handleSubmit}>
-            <FormLayout>
+    <Modal
+      open={editModalOpen}
+      onClose={() => setEditModalOpen(false)}
+      title="Edit Goal/Discount Pair"
+      footer={<Footer />}
+    >
+      <Form action="edit" onSubmit={handleSubmit}>
+        <FormLayout>
           <BlockStack gap="400">
+            <TextField
+              label={`Goal Name`}
+              name="goal_name"
+              value={name}
+              onChange={setname}
+              autoComplete="on"
+              inputMode="text"
+              helpText="Goal Name"
+            />
             <TextField
               label={`Cart goal`}
               name="cart_goal"
@@ -81,14 +100,14 @@ function handleSubmit(event: React.FormEvent) {
               helpText="Shown before reaching a goal. Use {amountLeft}, {discount}, {percent}."
             />
           </BlockStack>
-          </FormLayout>
-          <InlineStack align='end' gap='200' blockAlign='center'>
-        <Button onClick={() => setEditModalOpen(false)}>Close</Button>
-        <Button variant='primary' role='submit' submit>
-          Save
-        </Button>
-    </InlineStack>
-        </Form>
-      </Modal>
-  )
+        </FormLayout>
+        <InlineStack align="end" gap="200" blockAlign="center">
+          <Button onClick={() => setEditModalOpen(false)}>Close</Button>
+          <Button variant="primary" role="submit" submit>
+            Save
+          </Button>
+        </InlineStack>
+      </Form>
+    </Modal>
+  );
 }

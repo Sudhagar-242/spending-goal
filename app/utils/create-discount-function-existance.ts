@@ -3,7 +3,7 @@ import {
   CREATE_AUTOMATIC_DISCOUNT_MUTATION,
 } from 'app/graphql/discount_function';
 import { SET_DISCOUNT_ID_METAFIELD } from 'app/graphql/meta_fields';
-import type { AdminApiContextWithoutRest } from '@shopify/shopify-app-remix';
+import type { AdminApiContextWithoutRest } from 'node_modules/@shopify/shopify-app-remix/dist/ts/server/clients';
 
 const DISCOUNT_TITLE = 'Cart Goal Discount';
 const FUNCTION_ID = '21ac4370-f3c7-4d09-90b0-21b86b9b24bd';
@@ -13,7 +13,7 @@ function buildDiscountInput(): Record<string, any> {
     title: DISCOUNT_TITLE,
     functionId: FUNCTION_ID,
     startsAt: new Date().toISOString(),
-    // discountClasses: ['PRODUCT', 'SHIPPING', 'ORDER'],
+    discountClasses: ['PRODUCT', 'SHIPPING', 'ORDER'],
     combinesWith: {
       orderDiscounts: true,
       productDiscounts: true,
@@ -27,14 +27,14 @@ async function createDiscount(admin: AdminApiContextWithoutRest) {
   const response = await admin.graphql(CREATE_AUTOMATIC_DISCOUNT_MUTATION, {
     variables: { discountInput },
   });
-  let data = response.data?.discountAutomaticAppCreate;
+  let data = (await response.json()).data?.discountAutomaticAppCreate;
   if (!data) {
     try {
       const json = await response.json();
       data = json.data?.discountAutomaticAppCreate;
-    } catch (e) {
-      console.error('[Discount] Error parsing createDiscount response:', e.message);
-      return { success: false, errors: [e] };
+    } catch (e: unknown) {
+      console.error('[Discount] Error parsing createDiscount response:', (e as Error).message);
+      return { success: false, errors: [e as Error] };
     }
   }
   const userErrors = data?.userErrors || [];
@@ -75,7 +75,7 @@ export async function ensureDiscountExists(
         variables: { id: discountId },
       });
       console.log('[Discount] Query response:', JSON.stringify(queryRes, null, 2));
-      const data = queryRes.data?.discountNode;
+      const data = (await queryRes.json()).data?.discountNode;
       if (data) {
         console.log('[Discount] Discount exists:', data);
         return { success: true, discountId };

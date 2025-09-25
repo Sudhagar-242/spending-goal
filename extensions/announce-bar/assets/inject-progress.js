@@ -177,7 +177,8 @@ function updateProgressBarWidth(progressFill, progress) {
 
 document.addEventListener("DOMContentLoaded", () => {
   const observer = new MutationObserver(() => {
-    const cartDrawer = document.querySelector("#CartDrawer .drawer__footer");
+    // cart-drawer__content cart-drawer__summary
+    const cartDrawer = document.querySelector("#CartDrawer .drawer__footer") ?? document.querySelector(".cart-drawer__content .cart-drawer__summary");
     console.log("inside the Main Observer");
     if (!document.querySelector("#my-progressbar")) {
       cartDrawer.insertAdjacentElement("beforebegin", wrapper());
