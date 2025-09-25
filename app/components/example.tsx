@@ -108,6 +108,7 @@ const Example = () => {
               paddingInlineStart="400"
               paddingInlineEnd="400"
             >
+            
               <BlockStack>
                 <Text variant="headingMd" as="h6">
                   Product Selection
