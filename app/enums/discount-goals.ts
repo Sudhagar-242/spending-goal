@@ -3,3 +3,9 @@ export enum DiscountGoals {
   REMOVE = 'remove',
   EDIT = 'edit',
 }
+
+export enum DiscountKind {
+  PRODUCT = "products",
+  ORDER = "orders",
+  SHIPPING = "shipping"
+}

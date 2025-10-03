@@ -1,3 +1,5 @@
+import { GoalFormResType } from "./form-response-types";
+
 export interface LoaderData {
   shopId: string;
   currencyCode: string;
@@ -56,7 +58,7 @@ export interface Shop {
 
 export interface GoalDiscounts {
   id: string;
-  value: string | GoalDiscountsValue[];
+  value: string | GoalFormResType[];
   type: string;
 }
 
@@ -107,22 +109,24 @@ export interface ProductsData {
   products: {
     edges: {
       cursor: string;
-      node: {
-        id: string;
-        title: string;
-        description: string;
-        featuredMedia?: {
-          preview: {
-            image: {
-              url: string;
-            };
-          };
-        };
-      };
+      node: ProductGQL;
     }[];
     pageInfo: {
       hasNextPage: boolean;
       endCursor: string;
+    };
+  };
+}
+
+export interface ProductGQL {
+  id: string;
+  title: string;
+  description: string;
+  featuredMedia?: {
+    preview: {
+      image: {
+        url: string;
+      };
     };
   };
 }

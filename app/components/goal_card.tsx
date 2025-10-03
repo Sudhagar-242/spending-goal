@@ -1,7 +1,6 @@
-import React from 'react'
-import { BlockStack, Button, Card, InlineStack, Text } from '@shopify/polaris'
-import GoalEditModal from './goalEditModal'
-import type { GoalDiscountsValue } from 'app/types/app_create-goal'
+import React from 'react';
+import { BlockStack, Button, Card, InlineStack, Text } from '@shopify/polaris';
+import type { GoalDiscountsValue } from 'app/types/app_create-goal';
 
 interface GoalCardProps {
   goal: GoalDiscountsValue;
@@ -41,29 +40,20 @@ const GoalCard: React.FC<GoalCardProps> = ({
       <Text as="h4" variant="headingSm">
         Amount:{' '}
         {goal
-          ? new Intl.NumberFormat(
-              typeof navigator !== 'undefined' ? navigator.language : 'en-IN',
-              {
-                style: 'currency',
-                currency: currencyCode,
-              },
-            ).format(Number(goal.amount) / 100)
+          ? new Intl.NumberFormat(typeof navigator !== 'undefined' ? navigator.language : 'en-IN', {
+              style: 'currency',
+              currency: currencyCode,
+            }).format(Number(goal.amount) / 100)
           : '-'}
       </Text>
       <Text as="h4" variant="headingSm" tone="success">
         Discount: {goal ? goal.discount : '-'}%
       </Text>
       <Text as="p" variant="bodySm" tone="subdued">
-        Progress Message:{' '}
-        <span style={{ fontStyle: 'italic' }}>
-          {goal?.progressMessage ?? ''}
-        </span>
+        Progress Message: <span style={{ fontStyle: 'italic' }}>{goal?.progressMessage ?? ''}</span>
       </Text>
       <Text as="p" variant="bodySm" tone="success">
-        Success Message:{' '}
-        <span style={{ fontWeight: 500 }}>
-          {goal?.successMessage ?? ''}
-        </span>
+        Success Message: <span style={{ fontWeight: 500 }}>{goal?.successMessage ?? ''}</span>
       </Text>
       {isOperational && onEditClick && setRemovingIndex && fetcher && shopId !== undefined ? (
         <InlineStack align="end">
@@ -86,6 +76,6 @@ const GoalCard: React.FC<GoalCardProps> = ({
       ) : null}
     </BlockStack>
   </Card>
-)
+);
 
-export default GoalCard
+export default GoalCard;

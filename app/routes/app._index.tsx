@@ -1,582 +1,625 @@
-// import { useEffect } from 'react';
-// import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
-// import { useFetcher, useLoaderData } from '@remix-run/react';
-// import {
-//   Page,
-//   Layout,
-//   Text,
-//   Card,
-//   Button,
-//   BlockStack,
-//   Box,
-//   List,
-//   Link,
-//   InlineStack,
-// } from '@shopify/polaris';
-// import { TitleBar, useAppBridge } from '@shopify/app-bridge-react';
-// import { authenticate } from '../models/shopify.server';
-
-// export const loader = async ({ request }: LoaderFunctionArgs) => {
-//   await authenticate.admin(request);
-
-//   return null;
-// };
-
-// export const action = async ({ request }: ActionFunctionArgs) => {
-//   const { admin } = await authenticate.admin(request);
-//   const color = ['Red', 'Orange', 'Yellow', 'Green'][Math.floor(Math.random() * 4)];
-//   const response = await admin.graphql(
-//     `#graphql
-//       mutation populateProduct($product: ProductCreateInput!) {
-//         productCreate(product: $product) {
-//           product {
-//             id
-//             title
-//             handle
-//             status
-//             variants(first: 10) {
-//               edges {
-//                 node {
-//                   id
-//                   price
-//                   barcode
-//                   createdAt
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }`,
-//     {
-//       variables: {
-//         product: {
-//           title: `${color} Snowboard`,
-//         },
-//       },
-//     },
-//   );
-//   const responseJson = await response.json();
-
-//   const product = responseJson.data!.productCreate!.product!;
-//   const variantId = product.variants.edges[0]!.node!.id!;
-
-//   const variantResponse = await admin.graphql(
-//     `#graphql
-//     mutation shopifyRemixTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-//       productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-//         productVariants {
-//           id
-//           price
-//           barcode
-//           createdAt
-//         }
-//       }
-//     }`,
-//     {
-//       variables: {
-//         productId: product.id,
-//         variants: [{ id: variantId, price: '100.00' }],
-//       },
-//     },
-//   );
-
-//   const variantResponseJson = await variantResponse.json();
-
-//   return {
-//     product: responseJson!.data!.productCreate!.product,
-//     variant: variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-//   };
-// };
-
-// export default function Index() {
-//   // const loader = useLoaderData<typeof loader>();
-//   const fetcher = useFetcher<typeof action>();
-
-//   const shopify = useAppBridge();
-//   const isLoading =
-//     ['loading', 'submitting'].includes(fetcher.state) && fetcher.formMethod === 'POST';
-//   const productId = fetcher.data?.product?.id.replace('gid://shopify/Product/', '');
-
-//   useEffect(() => {
-//     if (productId) {
-//       shopify.toast.show('Product created');
-//     }
-//   }, [productId, shopify]);
-//   const generateProduct = () => fetcher.submit({}, { method: 'POST' });
-
-//   return (
-//     <Page>
-//       <TitleBar title="Remix app template">
-//         <button variant="primary" onClick={generateProduct}>
-//           Generate a product
-//         </button>
-//       </TitleBar>
-//       <BlockStack gap="500">
-//         <Layout>
-//           <Layout.Section>
-//             <Card>
-//               <BlockStack gap="500">
-//                 <BlockStack gap="200">
-//                   <Text as="h2" variant="headingMd">
-//                     Congrats on creating a new Shopify app 🎉
-//                   </Text>
-//                   <Text variant="bodyMd" as="p">
-//                     This embedded app template uses{' '}
-//                     <Link
-//                       url="https://shopify.dev/docs/apps/tools/app-bridge"
-//                       target="_blank"
-//                       removeUnderline
-//                     >
-//                       App Bridge
-//                     </Link>{' '}
-//                     interface examples like an{' '}
-//                     <Link url="/app/additional" removeUnderline>
-//                       additional page in the app nav
-//                     </Link>
-//                     , as well as an{' '}
-//                     <Link
-//                       url="https://shopify.dev/docs/api/admin-graphql"
-//                       target="_blank"
-//                       removeUnderline
-//                     >
-//                       Admin GraphQL
-//                     </Link>{' '}
-//                     mutation demo, to provide a starting point for app development.
-//                   </Text>
-//                 </BlockStack>
-//                 <BlockStack gap="200">
-//                   <Text as="h3" variant="headingMd">
-//                     Get started with products
-//                   </Text>
-//                   <Text as="p" variant="bodyMd">
-//                     Generate a product with GraphQL and get the JSON output for that product. Learn
-//                     more about the{' '}
-//                     <Link
-//                       url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-//                       target="_blank"
-//                       removeUnderline
-//                     >
-//                       productCreate
-//                     </Link>{' '}
-//                     mutation in our API references.
-//                   </Text>
-//                 </BlockStack>
-//                 <InlineStack gap="300">
-//                   <Button loading={isLoading} onClick={generateProduct}>
-//                     Generate a product
-//                   </Button>
-//                   {fetcher.data?.product && (
-//                     <Button
-//                       url={`shopify:admin/products/${productId}`}
-//                       target="_blank"
-//                       variant="plain"
-//                     >
-//                       View product
-//                     </Button>
-//                   )}
-//                 </InlineStack>
-//                 {fetcher.data?.product && (
-//                   <>
-//                     <Text as="h3" variant="headingMd">
-//                       {' '}
-//                       productCreate mutation
-//                     </Text>
-//                     <Box
-//                       padding="400"
-//                       background="bg-surface-active"
-//                       borderWidth="025"
-//                       borderRadius="200"
-//                       borderColor="border"
-//                       overflowX="scroll"
-//                     >
-//                       <pre style={{ margin: 0 }}>
-//                         <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-//                       </pre>
-//                     </Box>
-//                     <Text as="h3" variant="headingMd">
-//                       {' '}
-//                       productVariantsBulkUpdate mutation
-//                     </Text>
-//                     <Box
-//                       padding="400"
-//                       background="bg-surface-active"
-//                       borderWidth="025"
-//                       borderRadius="200"
-//                       borderColor="border"
-//                       overflowX="scroll"
-//                     >
-//                       <pre style={{ margin: 0 }}>
-//                         <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-//                       </pre>
-//                     </Box>
-//                   </>
-//                 )}
-//               </BlockStack>
-//             </Card>
-//           </Layout.Section>
-//           <Layout.Section variant="oneThird">
-//             <BlockStack gap="500">
-//               <Card>
-//                 <BlockStack gap="200">
-//                   <Text as="h2" variant="headingMd">
-//                     App template specs
-//                   </Text>
-//                   <BlockStack gap="200">
-//                     <InlineStack align="space-between">
-//                       <Text as="span" variant="bodyMd">
-//                         Framework
-//                       </Text>
-//                       <Link url="https://remix.run" target="_blank" removeUnderline>
-//                         Remix
-//                       </Link>
-//                     </InlineStack>
-//                     <InlineStack align="space-between">
-//                       <Text as="span" variant="bodyMd">
-//                         Database
-//                       </Text>
-//                       <Link url="https://www.prisma.io/" target="_blank" removeUnderline>
-//                         Prisma
-//                       </Link>
-//                     </InlineStack>
-//                     <InlineStack align="space-between">
-//                       <Text as="span" variant="bodyMd">
-//                         Interface
-//                       </Text>
-//                       <span>
-//                         <Link url="https://polaris.shopify.com" target="_blank" removeUnderline>
-//                           Polaris
-//                         </Link>
-//                         {', '}
-//                         <Link
-//                           url="https://shopify.dev/docs/apps/tools/app-bridge"
-//                           target="_blank"
-//                           removeUnderline
-//                         >
-//                           App Bridge
-//                         </Link>
-//                       </span>
-//                     </InlineStack>
-//                     <InlineStack align="space-between">
-//                       <Text as="span" variant="bodyMd">
-//                         API
-//                       </Text>
-//                       <Link
-//                         url="https://shopify.dev/docs/api/admin-graphql"
-//                         target="_blank"
-//                         removeUnderline
-//                       >
-//                         GraphQL API
-//                       </Link>
-//                     </InlineStack>
-//                   </BlockStack>
-//                 </BlockStack>
-//               </Card>
-//               <Card>
-//                 <BlockStack gap="200">
-//                   <Text as="h2" variant="headingMd">
-//                     Next steps
-//                   </Text>
-//                   <List>
-//                     <List.Item>
-//                       Build an{' '}
-//                       <Link
-//                         url="https://shopify.dev/docs/apps/getting-started/build-app-example"
-//                         target="_blank"
-//                         removeUnderline
-//                       >
-//                         {' '}
-//                         example app
-//                       </Link>{' '}
-//                       to get started
-//                     </List.Item>
-//                     <List.Item>
-//                       Explore Shopify’s API with{' '}
-//                       <Link
-//                         url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-//                         target="_blank"
-//                         removeUnderline
-//                       >
-//                         GraphiQL
-//                       </Link>
-//                     </List.Item>
-//                   </List>
-//                 </BlockStack>
-//               </Card>
-//             </BlockStack>
-//           </Layout.Section>
-//         </Layout>
-//       </BlockStack>
-//     </Page>
-//   );
-// }
-
-// import { json, LoaderFunctionArgs } from "@remix-run/node";
-// import { useLoaderData } from "@remix-run/react";
-// import {
-//   Card,
-//   Layout,
-//   Page,
-//   Text,
-//   DataTable,
-//   Badge,
-//   InlineStack,
-// } from "@shopify/polaris";
-// import { authenticate } from "../models/shopify.server";
-// import { useAppBridge } from "@shopify/app-bridge-react";
-// import { useEffect } from "react";
-
-// // Dummy data for analytics
-// const dummyAnalyticsData = {
-//   totalCustomers: 1245,
-//   totalOrders: 342,
-//   totalRevenue: 12456.78,
-//   progressBarUsage: 75,
-// };
-
-// const dummyCustomerList = [
-//   { id: "1", name: "John Doe", email: "john@example.com", orders: 5, status: "active" },
-//   { id: "2", name: "Jane Smith", email: "jane@example.com", orders: 3, status: "active" },
-//   { id: "3", name: "Bob Johnson", email: "bob@example.com", orders: 1, status: "inactive" },
-//   { id: "4", name: "Alice Brown", email: "alice@example.com", orders: 7, status: "active" },
-// ];
-
-// // Loader function (optional: fetch real data via Shopify Admin API)
-// export const loader = async ({ request }: LoaderFunctionArgs) => {
-//   const { admin } = await authenticate.admin(request);
-//   // Example: Fetch real data using GraphQL
-//   // const response = await admin.graphql(`{ shop { name } }`);
-//   // const shop = await response.json();
-//   return json({ dummyAnalyticsData, dummyCustomerList });
-// };
-
-// export default function Index() {
-//   const { dummyAnalyticsData, dummyCustomerList } = useLoaderData<typeof loader>();
-//   const shopify = useAppBridge();
-
-//   // Example: Redirect using App Bridge
-//   // const handleRedirect = () => {
-//   //   const redirect = Redirect.create(app);
-//   //   redirect.dispatch(Redirect.Action.ADMIN_PATH, { path: "/settings" });
-//   // };
-
-//   useEffect(() => {
-//     shopify.toast.show("Welcome to the Analytics Dashboard!");
-//   }, []);
-
-//   // DataTable rows for customer list
-//   const rows = dummyCustomerList.map((customer) => [
-//     customer.id,
-//     customer.name,
-//     customer.email,
-//     customer.orders,
-//     <Badge key={customer.id} tone={customer.status === "active" ? "success" : "warning"}>
-//       {customer.status}
-//     </Badge>,
-//   ]);
-
-//   return (
-//     <Page
-//       title="Analytics Dashboard"
-//       subtitle="Track progress bar usage and customer engagement"
-//       primaryAction={{ content: "Settings" }}
-//       // primaryAction={{ content: "Settings", onAction: handleRedirect }}
-//     >
-//       <Layout>
-//         {/* Analytics Summary Cards */}
-//         <Layout.Section>
-//           <InlineStack align="space-evenly">
-//             <Card padding={"400"}>
-//               <Text variant="bodyMd" fontWeight="bold" as="p">
-//                 Total Customers
-//               </Text>
-//               <Text variant="heading2xl" as="h2">
-//                 {dummyAnalyticsData.totalCustomers}
-//               </Text>
-//             </Card>
-//             <Card>
-//               <Text variant="bodyMd" fontWeight="bold" as="p">
-//                 Total Orders
-//               </Text>
-//               <Text variant="heading2xl" as="h2">
-//                 {dummyAnalyticsData.totalOrders}
-//               </Text>
-//             </Card>
-//             <Card>
-//               <Text variant="bodyMd" fontWeight="bold" as="p">
-//                 Total Revenue
-//               </Text>
-//               <Text variant="heading2xl" as="h2">
-//                 ${dummyAnalyticsData.totalRevenue.toFixed(2)}
-//               </Text>
-//             </Card>
-//             <Card>
-//               <Text variant="bodyMd" fontWeight="bold" as="p">
-//                 Progress Bar Usage
-//               </Text>
-//               <Text variant="heading2xl" as="h2">
-//                 {dummyAnalyticsData.progressBarUsage}%
-//               </Text>
-//             </Card>
-//           </InlineStack>
-//         </Layout.Section>
-
-//         {/* Customer List Table */}
-//         <Layout.Section>
-//           <Card>
-//             <DataTable
-//               columnContentTypes={["text", "text", "text", "numeric", "text"]}
-//               headings={["ID", "Name", "Email", "Orders", "Status"]}
-//               rows={rows}
-//             />
-//           </Card>
-//         </Layout.Section>
-//       </Layout>
-//     </Page>
-//   );
-// }
-
-import { json, LoaderFunctionArgs } from '@remix-run/node';
-import { useLoaderData } from '@remix-run/react';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
+import { json } from '@remix-run/node';
+import { Link, useFetcher, useLoaderData, useNavigate, useNavigation } from '@remix-run/react';
 import {
   Card,
-  Layout,
   Page,
   Text,
-  Badge,
-  InlineStack,
   BlockStack,
+  Button,
+  TextField,
+  EmptyState,
+  InlineStack,
+  Modal,
+  Frame,
+  Select,
+  SkeletonBodyText,
+  SkeletonDisplayText,
+  Toast,
+  Banner,
+  Layout,
+  SkeletonPage,
+  ContextualSaveBar,
 } from '@shopify/polaris';
-import { authenticate } from '../models/shopify.server';
-import { useAppBridge } from '@shopify/app-bridge-react';
-import { useEffect } from 'react';
+import { apiVersion, authenticate } from '../models/shopify.server';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  CREATE_OR_UPDATE_METAFIELD,
+  SET_GOAL_DISCOUNTS_METAFIELD,
+  SHOP_AND_GOAL_QUERY,
+} from 'app/graphql/meta_fields';
+import type { GoalDiscountsValue, ProductGQL, ShopData } from 'app/types/app_create-goal';
+import { requestMutation, requestQuery } from 'app/utils/requestGQL';
+import type { GoalFormResType } from 'app/types/form-response-types';
+import { DiscountGoals, DiscountKind } from 'app/enums/discount-goals';
+import { ensureDiscountExists } from 'app/utils/create-discount-function-existance';
+import { fetchAllProducts } from 'app/utils/fetchAllProducts';
+import { addGoals, removeGoal, editGoal } from 'app/utils/goalOperations';
+import OrderGoalForm from 'app/components/forms/orderForm';
+import ProductGoalForm from 'app/components/forms/productForm';
+import ShippingGoalForm from 'app/components/forms/shippingForm';
+import { ProductsContextProvider } from 'app/context/productsContext';
+import { SpendingGoalsResourceList } from 'app/components/goals_lister';
+import { SaveBar, useAppBridge } from '@shopify/app-bridge-react';
+import { Mode } from 'app/enums/mode.enum';
+import InlineEditableText from 'app/components/form-components/inline-Editable-Text';
 
-import { requestQuery } from './app.goals-creation';
-import { SHOP_AND_GOAL_QUERY } from 'app/graphql/meta_fields';
-import type { GoalDiscountsValue, ShopData } from 'app/types/app_create-goal';
-import GoalCard from 'app/components/goal_card';
-
-// Dummy data for analytics
-const dummyAnalyticsData = {
-  totalCustomers: 1245,
-  totalOrders: 342,
-  totalRevenue: 12456.78,
-  progressBarUsage: 75,
-};
-
-const dummyCustomerList = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', orders: 5, status: 'active' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com', orders: 3, status: 'active' },
-  { id: '3', name: 'Bob Johnson', email: 'bob@example.com', orders: 1, status: 'inactive' },
-  { id: '4', name: 'Alice Brown', email: 'alice@example.com', orders: 7, status: 'active' },
-];
-
-// Loader function (optional: fetch real data via Shopify Admin API)
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export async function loader({ request }: LoaderFunctionArgs) {
+  const { admin, session } = await authenticate.admin(request);
+  try {
+    const { shop } = await requestQuery<ShopData>(admin, SHOP_AND_GOAL_QUERY);
+    if (shop) {
+      const { id: shopId, url, currencyCode, goalDiscounts, discountId } = shop;
+      const { products, pageInfo } = await fetchAllProducts(admin, 200, null);
+      return {
+        shopId,
+        currencyCode,
+        goalDiscountArray: goalDiscounts
+          ? (JSON.parse(goalDiscounts?.value as string) as GoalDiscountsValue[])
+          : [],
+        discountId,
+        url,
+        accessToken: session?.accessToken,
+        apiVersion,
+        products,
+        pageInfo,
+        error: '',
+      };
+    }
+    return {
+      shopId: '',
+      currencyCode: '',
+      goalDiscountArray: [],
+      discountId: '',
+      products: null,
+      pageInfo: null,
+      error: 'Shop metafield not available',
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log('Error in loader:', error.message);
+    }
+    return {
+      shopId: '',
+      currencyCode: '',
+      goalDiscountArray: [],
+      discountId: '',
+      products: null,
+      pageInfo: null,
+      error: 'Shop metafield not available',
+    };
+  }
+}
+export async function action({ request }: ActionFunctionArgs) {
   const { admin } = await authenticate.admin(request);
+  const formData = await request.formData();
+
+  // Get the shop data
   const { shop } = await requestQuery<ShopData>(admin, SHOP_AND_GOAL_QUERY);
-  const { currencyCode, goalDiscounts } = shop;
-  const goalDiscountArray = JSON.parse(goalDiscounts?.value as string) as GoalDiscountsValue[];
-  return json({ dummyAnalyticsData, dummyCustomerList, currencyCode, goalDiscountArray });
-};
+  const { goalDiscounts, discountId, id: shopId } = shop;
 
+  // Parse existing goals or initialize empty array
+  let goalDiscountsArray: GoalDiscountsValue[] = goalDiscounts?.value
+    ? JSON.parse(goalDiscounts.value as string)
+    : [];
+
+  // Handle goal form submission from any of the forms
+  const goalData = formData.get('goalData')?.toString();
+  if (goalData) {
+    try {
+      // Parse the goal data from the form
+      const newGoal = JSON.parse(goalData);
+
+      // Validate the goal data based on its type
+      if (!newGoal.type || !['order', 'product', 'shipping'].includes(newGoal.type)) {
+        return json({ ok: false, error: 'Invalid goal type' }, { status: 400 });
+      }
+
+      // Add metadata
+      newGoal.id = newGoal.id ?? crypto.randomUUID();
+      newGoal.active = true;
+      newGoal.createdAt = new Date().toISOString();
+      newGoal.updatedAt = new Date().toISOString();
+
+      console.log('ensures', discountId);
+      // Ensure discount exists
+      if (discountId) {
+        await ensureDiscountExists(admin, discountId.value, shopId);
+      }
+      // Add the new goal to the array
+      goalDiscountsArray.push(newGoal);
+
+      // Save the updated goals array to Shopify
+      const { metafieldsSet } = await requestMutation<{
+        metafieldsSet: { userErrors: any[]; metafields: any[] };
+      }>(admin, SET_GOAL_DISCOUNTS_METAFIELD, {
+        variables: { ownerId: shopId, value: JSON.stringify(goalDiscountsArray) },
+      });
+
+      const userErrors = metafieldsSet?.userErrors ?? [];
+      if (userErrors.length > 0) {
+        return json({ ok: false, userErrors }, { status: 400 });
+      }
+
+      return json({ ok: true, goalDiscounts: goalDiscountsArray });
+    } catch (error) {
+      console.error('Error processing goal submission:', error);
+      return json({ ok: false, error: 'Failed to process goal submission' }, { status: 400 });
+    }
+  }
+
+  // Handle other actions (ADD, REMOVE, EDIT)
+  const actionType = formData.get('actionType')?.toString() ?? '';
+  if (
+    [DiscountGoals.ADD, DiscountGoals.REMOVE, DiscountGoals.EDIT].includes(actionType as any) &&
+    (!discountId || !discountId.id)
+  ) {
+    await ensureDiscountExists(admin, discountId?.id, shopId);
+  }
+
+  switch (actionType) {
+    case DiscountGoals.ADD:
+      goalDiscountsArray.push(addGoals(formData, goalDiscountsArray) as GoalDiscountsValue);
+      break;
+    case DiscountGoals.REMOVE:
+      const indexToRemove = removeGoal(formData);
+      if (indexToRemove >= 0 && indexToRemove < goalDiscountsArray.length) {
+        goalDiscountsArray.splice(indexToRemove, 1);
+      }
+      break;
+    case DiscountGoals.EDIT:
+      const { idx, goal } = editGoal(formData);
+      if (idx >= 0 && idx < goalDiscountsArray.length) {
+        goalDiscountsArray[idx] = {
+          ...goalDiscountsArray[idx],
+          ...goal,
+          // updatedAt: new Date().toISOString(),
+        };
+      }
+      break;
+    default:
+      return json({ ok: false, userErrors: [{ message: 'Invalid action type' }] }, { status: 400 });
+  }
+
+  // Save the updated goals array to Shopify
+  const { metafieldsSet } = await requestMutation<{
+    metafieldsSet: { userErrors: any[]; metafields: any[] };
+  }>(admin, SET_GOAL_DISCOUNTS_METAFIELD, {
+    variables: { ownerId: shopId, value: JSON.stringify(goalDiscountsArray) },
+  });
+
+  const userErrors = metafieldsSet?.userErrors ?? [];
+  const metafields = metafieldsSet?.metafields ?? [];
+  if (userErrors.length > 0) {
+    return json({ ok: false, userErrors }, { status: 400 });
+  }
+  return json({ ok: true, metafields, goalDiscounts: goalDiscountsArray });
+}
+
+// --- Types ---
+interface GoalType {
+  id: string;
+  name: string;
+}
+interface SectionType {
+  id: string;
+  name: string;
+  goals: GoalType[];
+}
+
+// --- Component ---
 export default function Index() {
-  const { dummyAnalyticsData, dummyCustomerList, currencyCode, goalDiscountArray } = useLoaderData<typeof loader>();
-  const app = useAppBridge();
+  const [mode, setMode] = useState<Mode>(Mode.IDLE);
+  const [sections, setSections] = useState<SectionType[]>([]);
+  const [addingGoalSectionId, setAddingGoalSectionId] = useState<string | null>(null);
+  const [tempGoalName, setTempGoalName] = useState('');
 
-  useEffect(() => {
-    app.toast.show('Welcome to the Analytics Dashboard!', { duration: 3000 });
-  }, [app]);
+  // --- Section logic ---
+  const handleAddSection = () => {
+    setSections([
+      ...sections,
+      {
+        id: Date.now().toString(),
+        name: `Section ${sections.length + 1}`,
+        goals: [],
+      },
+    ]);
+    setMode(Mode.EDIT);
+  };
 
-  // DataTable rows for customer list
-  const rows = dummyCustomerList.map((customer) => [
-    customer.id,
-    customer.name,
-    customer.email,
-    customer.orders,
-    <Badge key={customer.id} tone={customer.status === 'active' ? 'success' : 'warning'}>
-      {customer.status}
-    </Badge>,
-  ]);
+  const handleRenameSection = (id: string, newName: string) => {
+    setSections(sections.map((s) => (s.id === id ? { ...s, name: newName } : s)));
+  };
 
-  return (
-    <Page
-      title="Analytics Dashboard"
-      subtitle="Track progress bar usage and customer engagement"
-      primaryAction={{ content: 'Create Goal', url: '/app/goals-creation' }}
-    >
-      <Layout>
-        {/* Analytics Summary Cards */}
-        <Layout.Section>
-          <InlineStack align="space-evenly" blockAlign="center" wrap={false}>
-            <Card padding="400">
-              <BlockStack spacing="tight">
-                <Text variant="bodyMd" fontWeight="bold" as="p">
-                  Total Customers
-                </Text>
-                <Text variant="heading2xl" as="h2">
-                  {dummyAnalyticsData.totalCustomers}
-                </Text>
-              </BlockStack>
-            </Card>
-            <Card padding="400">
-              <BlockStack spacing="tight">
-                <Text variant="bodyMd" fontWeight="bold" as="p">
-                  Total Orders
-                </Text>
-                <Text variant="heading2xl" as="h2">
-                  {dummyAnalyticsData.totalOrders}
-                </Text>
-              </BlockStack>
-            </Card>
-            <Card padding="400">
-              <BlockStack spacing="tight">
-                <Text variant="bodyMd" fontWeight="bold" as="p">
-                  Total Revenue
-                </Text>
-                <Text variant="heading2xl" as="h2">
-                  ${dummyAnalyticsData.totalRevenue.toFixed(2)}
-                </Text>
-              </BlockStack>
-            </Card>
-            <Card padding="400">
-              <BlockStack spacing="tight">
-                <Text variant="bodyMd" fontWeight="bold" as="p">
-                  Progress Bar Usage
-                </Text>
-                <Text variant="heading2xl" as="h2">
-                  {dummyAnalyticsData.progressBarUsage}%
-                </Text>
-              </BlockStack>
-            </Card>
-          </InlineStack>
-        </Layout.Section>
+  // --- Goal logic ---
+  const handleAddGoal = (sectionId: string) => {
+    setAddingGoalSectionId(sectionId);
+    setTempGoalName('');
+  };
 
-        {/* Customer List Table */}
-        <Layout.Section>
-          <Card padding="400">
+  const handleSaveGoal = () => {
+    if (addingGoalSectionId) {
+      setSections(
+        sections.map((section) =>
+          section.id === addingGoalSectionId
+            ? {
+                ...section,
+                goals: [
+                  ...section.goals,
+                  { id: Date.now().toString(), name: tempGoalName || 'New Goal' },
+                ],
+              }
+            : section,
+        ),
+      );
+    }
+    setAddingGoalSectionId(null);
+    setTempGoalName('');
+  };
+
+  // --- Mode toggles ---
+  const handleEditMode = () => setMode(Mode.EDIT);
+  const handleSaveMode = () => setMode(Mode.IDLE);
+
+  // --- UI rendering ---
+  const renderSections = () => {
+    if (sections.length === 0) {
+      return (
+        <EmptyState
+          heading="No sections yet"
+          action={{ content: 'Add Section', onAction: handleAddSection }}
+          image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+        >
+          <Text as="p">Add sections to get started.</Text>
+        </EmptyState>
+      );
+    }
+
+    return (
+      <BlockStack gap="400">
+        {sections.map((section) => (
+          <Card key={section.id}>
             <BlockStack gap="200">
-              <Text as="h3" variant="headingSm">
-                Current goal/discount pairs:
-              </Text>
-              {goalDiscountArray && goalDiscountArray.length === 0 ? (
-                <Text as="p" variant="bodyMd">
-                  No pairs set yet.
-                </Text>
-              ) : (
-                <>
-                  {goalDiscountArray.map((pair, idx) => (
-                    <GoalCard goal={pair!} index={idx} key={idx} currencyCode={currencyCode} />
-                  ))}
-                </>
+              <InlineStack align="space-between">
+                <InlineEditableText
+                  value={section.name}
+                  onSave={(newVal) => handleRenameSection(section.id, newVal)}
+                />
+              </InlineStack>
+
+              {/* Goals list */}
+              <BlockStack gap="200">
+                {section.goals.length === 0 ? (
+                  <Text as="p">No goals yet. Click "Add Goal" to create one.</Text>
+                ) : (
+                  section.goals.map((goal) => (
+                    <SpendingGoalsResourceList
+                      initialGoals={[]} 
+                      key={goal.id}
+                    />
+                  ))
+                )}
+              </BlockStack>
+
+              {mode === Mode.EDIT && (
+                <Button fullWidth onClick={() => handleAddGoal(section.id)}>
+                  Add Goal
+                </Button>
               )}
             </BlockStack>
           </Card>
-        </Layout.Section>
-      </Layout>
-    </Page>
+        ))}
+      </BlockStack>
+    );
+  };
+
+  return (
+    <>
+      <Page
+        title="Sections and Goals"
+        primaryAction={{
+          content: mode === Mode.IDLE ? 'Edit Mode' : 'Save',
+          onAction: mode === Mode.IDLE ? handleEditMode : handleSaveMode,
+        }}
+        secondaryActions={
+          mode === Mode.EDIT
+            ? [
+                {
+                  content: 'Add Section',
+                  onAction: handleAddSection,
+                },
+              ]
+            : undefined
+        }
+      >
+        {renderSections()}
+
+        {/* Modal for adding goal */}
+        <Modal
+          open={!!addingGoalSectionId}
+          onClose={() => setAddingGoalSectionId(null)}
+          title="Add Goal 121"
+          primaryAction={{ content: 'Save', onAction: handleSaveGoal }}
+          secondaryActions={[{ content: 'Cancel', onAction: () => setAddingGoalSectionId(null) }]}
+        >
+          <Modal.Section>
+            <TextField
+              label="Goal Name"
+              value={tempGoalName}
+              onChange={setTempGoalName}
+              autoComplete="off"
+            />
+          </Modal.Section>
+        </Modal>
+
+        {/* Save bar */}
+        <SaveBar open={mode === Mode.EDIT}>
+          <button variant="primary" onClick={handleSaveMode}>
+            Save
+          </button>
+          <button onClick={handleSaveMode}>Discard</button>
+        </SaveBar>
+      </Page>
+    </>
   );
 }
 
-//   OrderIcon,
-//   CartSaleIcon,
-//   MoneyIcon
+// interface GoalType {
+//   id: string;
+//   name: string;
+// }
+
+// interface SectionType {
+//   id: string;
+//   name: string;
+//   goals: GoalType[];
+// }
+
+// export default function Index() {
+//   const { goalDiscountArray } = useLoaderData<typeof loader>();
+
+//   const [mode, setMode] = useState<'idle' | 'edit'>('idle');
+//   const [sections, setSections] = useState<SectionType[]>([]);
+//   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+//   const [tempSectionName, setTempSectionName] = useState('');
+
+
+//   // Switch modes
+//   const handleEditMode = () => {
+//     console.log("editting");
+//     setMode('edit');
+//     handleSaveSection();
+//   };
+//   const handleSaveMode = () => {
+//     console.log("idle...");
+//     setMode('idle');
+//   };
+
+//   // Section add/edit logic
+//   const handleAddSection = () => {
+//     setEditingSectionId(null);
+//     setTempSectionName('');
+//     setSections([
+//       ...sections,
+//       {
+//         id: Date.now().toString(),
+//         name: `Section ${sections.length + 1}`,
+//         goals: [],
+//       },
+//     ]);
+//   };
+
+//   const handleEditSection = (id: string, currentName: string) => {
+//     setEditingSectionId(id);
+//     setTempSectionName(currentName);
+//   };
+
+//   const handleSaveSection = () => {
+//     if (editingSectionId) {
+//       setSections(
+//         sections.map((section) =>
+//           section.id === editingSectionId ? { ...section, name: tempSectionName } : section,
+//         ),
+//       );
+//     }
+//     setEditingSectionId(null);
+//     setTempSectionName('');
+//   };
+
+//   const renderSections = () => {
+//     if (sections.length === 0) {
+//       return (
+//         <EmptyState
+//           heading="No sections yet"
+//           action={{ content: 'Add Section', onAction: handleAddSection }}
+//           image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+//         >
+//           <Text as="p">Add sections to get started.</Text>
+//         </EmptyState>
+//       );
+//     }
+
+//     return (
+//       <BlockStack gap="400">
+//         {sections.map((section) => (
+//           <Card key={section.id}>
+//             <BlockStack gap="200">
+//               <InlineStack align="space-between">
+//                 <Text variant="headingMd" as="h3">
+//                   {section.name}
+//                 </Text>
+//                 {mode === 'edit' && (
+//                   <Button onClick={() => handleEditSection(section.id, section.name)}>Edit</Button>
+//                 )}
+//               </InlineStack>
+//               <BlockStack gap="200">
+//                 {section.goals.length === 0 ? (
+//                   <Text as="p">No goals yet. Click "Add Goal" to create one.</Text>
+//                 ) : (
+//                   section.goals.map((goal, id) => (
+//                     <SpendingGoalsResourceList initialGoals={goalDiscountArray} key={id} />
+//                   ))
+//                 )}
+//               </BlockStack>
+//               {mode === 'edit' && <Button fullWidth>Add Goal</Button>}
+//             </BlockStack>
+//           </Card>
+//         ))}
+//       </BlockStack>
+//     );
+//   };
+
+//   return (
+//     <>
+//       <Page
+//         title="Sections and Goals"
+//         primaryAction={{
+//           content: mode === 'idle' ? 'Edit Mode' : 'Save',
+//           onAction: mode === 'idle' ? handleEditMode : handleSaveMode,
+//         }}
+//       >
+//         {renderSections()}
+//         <SaveBar id='edit-save-bar' open={mode === 'edit'} onShow={() => console.log("Showing Save Bar")} onHide={() => console.log("Hiding Save Bar")}>
+//           <button variant='primary' onClick={handleSaveMode}>Save</button>
+//           <button onClick={handleEditMode}>Discard</button>
+//         </SaveBar>
+//       </Page>
+//     </>
+//   );
+// }
+
+// export default function Index() {
+//   const { shopId, currencyCode, goalDiscountArray, products, error } =
+//     useLoaderData<typeof loader>();
+//   const fetcher = useFetcher<typeof action>();
+//   const [mode, setMode] = useState<boolean>(false); // "idle" = false | "edit" = true
+//   const [sections, setSections] = useState<SectionType[]>([]);
+//   const [isEditing, setIsEditing] = useState(false);
+//   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+//   const [tempSectionName, setTempSectionName] = useState('');
+
+//   const handleSaveMode = () => {
+//     setMode(false);
+//     handleSaveSection();
+//   };
+//   const handleEditMode = () => {
+//     setMode(true);
+//   };
+
+//   const handleAddSection = () => {
+//     setIsEditing(true);
+//     setEditingSectionId(null);
+//     setTempSectionName('');
+//   };
+
+//   const handleEditSection = (sectionId: string, currentName: string) => {
+//     setIsEditing(true);
+//     setEditingSectionId(sectionId);
+//     setTempSectionName(currentName);
+//   };
+
+//   const handleSaveSection = () => {
+//     if (editingSectionId === null) {
+//       const newSection: SectionType = {
+//         id: Date.now().toString(),
+//         name: tempSectionName || `Section ${sections.length + 1}`,
+//         goals: [],
+//       };
+//       setSections([...sections, newSection]);
+//     } else {
+//       setSections(
+//         sections.map((section) =>
+//           section.id === editingSectionId ? { ...section, name: tempSectionName } : section,
+//         ),
+//       );
+//     }
+//     setIsEditing(false);
+//     setEditingSectionId(null);
+//     setTempSectionName('');
+//   };
+
+//   const handleCancelEdit = () => {
+//     setIsEditing(false);
+//     setEditingSectionId(null);
+//     setTempSectionName('');
+//   };
+
+//   const renderSections = () => {
+//     if (isEditing) {
+//       return (
+//         <Modal
+//           open={isEditing}
+//           onClose={handleCancelEdit}
+//           title={editingSectionId ? 'Edit Section' : 'Add Section'}
+//           primaryAction={{
+//             content: 'Save',
+//             onAction: handleSaveSection,
+//           }}
+//           secondaryActions={[{ content: 'Cancel', onAction: handleCancelEdit }]}
+//         >
+//           <Modal.Section>
+//             <TextField
+//               label="Section Name"
+//               value={tempSectionName}
+//               onChange={setTempSectionName}
+//               autoComplete="off"
+//             />
+//           </Modal.Section>
+//         </Modal>
+//       );
+//     }
+
+//     if (sections.length === 0) {
+//       return (
+//         <EmptyState
+//           heading="No sections yet"
+//           action={{ content: 'Add Section', onAction: handleAddSection }}
+//           image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+//         >
+//           <Text as="p">Add sections to get started.</Text>
+//         </EmptyState>
+//       );
+//     }
+
+//     return (
+//       <BlockStack gap="400">
+//         {sections.map((section) => (
+//           <Card key={section.id}>
+//             <BlockStack gap="200">
+//               <InlineStack align="space-between">
+//                 <Text variant="headingMd" as="h3">
+//                   {section.name}
+//                 </Text>
+//                 {mode && (
+//                   <Button onClick={() => handleEditSection(section.id, section.name)}>Edit</Button>
+//                 )}
+//               </InlineStack>
+//               <BlockStack gap="200">
+//                 {section.goals.length === 0 ? (
+//                   <Text as="p">No goals yet. Click "Add Goal" to create one.</Text>
+//                 ) : (
+//                   section.goals.map((goal, id) => (
+//                     <SpendingGoalsResourceList initialGoals={goalDiscountArray} key={id} />
+//                   ))
+//                 )}
+//               </BlockStack>
+//               <Button fullWidth>Add Goal</Button>
+//             </BlockStack>
+//           </Card>
+//         ))}
+//       </BlockStack>
+//     );
+//   };
+
+//   return (
+//     <Page
+//       title="Sections and Goals"
+//       primaryAction={{
+//         content: mode ? 'Add Section' : 'save',
+//         onAction: mode ? handleSaveMode : handleEditMode,
+//       }}
+//     >
+//       {renderSections()}
+//     </Page>
+//   );
+// }

@@ -50,24 +50,23 @@ async function createDiscount(admin: AdminApiContextWithoutRest) {
 
 async function saveDiscountIdMetafield(
   admin: AdminApiContextWithoutRest,
-  ownerId: string,
+  ShopId: string,
   discountId: string,
 ) {
   await admin.graphql(SET_DISCOUNT_ID_METAFIELD, {
-    variables: { ownerId, discountId: discountId },
+    variables: { ShopId, discountId: discountId },
   });
 }
 
 export async function ensureDiscountExists(
   admin: AdminApiContextWithoutRest,
   discountId: string | null,
-  ownerId: string,
+  ShopId: string,
 ) {
   // Only query if discountId looks valid (DiscountAutomaticApp)
   if (
-    discountId &&
-    typeof discountId === 'string' &&
-    discountId.startsWith('gid://shopify/DiscountAutomaticApp/')
+    discountId  &&
+    discountId.startsWith('gid://shopify/DiscountAutomaticNode/')
   ) {
     console.log('[Discount] Checking discountId:', discountId);
     try {
@@ -84,7 +83,6 @@ export async function ensureDiscountExists(
       }
     } catch (err: any) {
       console.error('[Discount] Error querying discountId:', discountId, err.message, err);
-      // If query fails, fall through to creation
     }
   } else {
     console.warn('[Discount] Skipping query, invalid discountId:', discountId);
@@ -111,7 +109,7 @@ export async function ensureDiscountExists(
   if (createResult.discountId) {
     // Always save the DiscountAutomaticApp ID
     console.log('[Discount] Saving new discountId to metafield:', createResult.discountId);
-    await saveDiscountIdMetafield(admin, ownerId, createResult.discountId);
+    await saveDiscountIdMetafield(admin, ShopId, createResult.discountId);
     return { success: true, discountId: createResult.discountId };
   }
   return { success: false };

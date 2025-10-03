@@ -1,0 +1,10 @@
+.custom-textfield .Polaris-TextField {
+  border: var(--p-border-width-050) solid var(--p-color-border-critical); 
+  border-radius: var(--p-border-radius-200);
+}
+
+.custom-textfield .Polaris-TextField__Input {
+  background-color: var(--p-color-bg-surface-emphasis) !important; 
+  font-size: var(--p-font-size-200) !important;
+  padding: 0 !important; /* remove default padding if needed */
+}

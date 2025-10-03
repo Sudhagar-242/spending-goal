@@ -5,6 +5,13 @@ export const GET_PRODUCTS_WITH_CURSOR = `query getProducts($first: Int!, $after:
               id
               title
               description
+              featuredMedia {
+                preview {
+                  image {
+                    url
+                  }
+                }
+              }
             }
           }
           pageInfo {
